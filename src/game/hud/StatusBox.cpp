@@ -1,7 +1,10 @@
 #include "game/hud/StatusBox.h"
 
 #include <exception>
+#include <filesystem>
 #include <format>
+#include <string>
+#include <system_error>
 
 #include "engine/core/Log.h"
 #include "engine/core/Types.h"
@@ -17,6 +20,7 @@ namespace {
 
 constexpr std::string_view kSelectDirectory = "SELECT";
 constexpr std::string_view kStaticDirectory = "STATIC";
+constexpr std::string_view kPlayersDirectory = "PLAYERS";
 constexpr std::string_view kInitialsFile = "fonts/initials.json";
 constexpr std::string_view kScoreFile = "fonts/score.json";
 constexpr std::string_view kSmallCapsFile = "fonts/8hifonts.json";
@@ -49,6 +53,7 @@ bool StatusBoxPainter::load(RenderDevice& device, const std::filesystem::path& u
     }
     m_device = &device;
     m_strings = strings;
+    m_players = unpackedRoot / kPlayersDirectory;
     const Texture* initials = staticTexture("INITIALS");
     if (initials == nullptr) {
         release();
@@ -95,6 +100,8 @@ void StatusBoxPainter::release() {
     m_smallCaps.setFont(nullptr, nullptr);
     m_select.releaseTextures();
     m_static.releaseTextures();
+    m_costumes.clear();
+    m_players.clear();
     m_device = nullptr;
     m_strings = nullptr;
 }
@@ -125,7 +132,7 @@ void StatusBoxPainter::draw(Canvas& canvas, s32 seat, const StatusBoxView& view,
     }
     const Texture* panel = nullptr;
     if (view.mode != StatusBoxView::Mode::Plain) {
-        panel = selectTexture(std::format("S4_{}", classCode(view.classIndex)));
+        panel = cardTexture(view.classIndex, view.costume);
     }
     if (panel != nullptr) {
         canvas.draw(*panel, box, boxTint(color, view.active));
@@ -358,6 +365,33 @@ const Texture* StatusBoxPainter::selectTexture(std::string_view name) {
         log::warn("Status boxes: texture {}: {}", name, e.what());
         return nullptr;
     }
+}
+
+const Texture* StatusBoxPainter::cardTexture(s32 classIndex, std::string_view costume) {
+    if (!costume.empty() && m_device != nullptr) {
+        // A costume's archive is its class's own, Sumner's the wizard's.
+        const std::string_view folder = classCode(archiveClassOf(classIndex));
+        const std::string key = std::format("{}/{}", folder, costume);
+        auto found = m_costumes.find(key);
+        if (found == m_costumes.end()) {
+            found = m_costumes.try_emplace(key).first;
+            const std::filesystem::path directory = m_players / folder / costume;
+            std::error_code missing;
+            if (std::filesystem::is_directory(directory, missing)) {
+                found->second.load(directory);
+            }
+        }
+        TextureSet& own = found->second;
+        const std::string name = std::format("S4_{}", folder);
+        if (const auto index = own.find(name)) {
+            try {
+                return &own.texture(*m_device, *index);
+            } catch (const std::exception& e) {
+                log::warn("Status boxes: costume {} card {}: {}", key, name, e.what());
+            }
+        }
+    }
+    return selectTexture(std::format("S4_{}", classCode(classIndex)));
 }
 
 const Texture* StatusBoxPainter::staticTexture(std::string_view name) {

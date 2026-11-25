@@ -2,6 +2,7 @@
 
 #include <array>
 #include <filesystem>
+#include <map>
 #include <optional>
 #include <span>
 #include <string>
@@ -31,6 +32,9 @@ struct StatusBoxView {
     Mode mode = Mode::Plain;
     bool active = false; ///< a player owns the box (else it is dimmed)
     s32 classIndex = 0;
+    /** The hidden costume worn, as its folder under the class's in PLAYERS: its own card is
+     * shown in place of the class's. Empty for an ordinary character. */
+    std::string costume;
     s32 color = 0;
     std::string name;
     s32 level = 1;
@@ -131,6 +135,11 @@ public:
     const Texture* staticTexture(std::string_view name);
     /** SELECT's picture `name`, the same way. */
     const Texture* selectTexture(std::string_view name);
+    /** The card of class `classIndex` wearing hidden costume `costume`: the costume's own
+     * (`S4_<class>` in PLAYERS/<class>/<costume>, as every hidden costume on the disc but Old
+     * Thor carries one), else SELECT's for the class. A costume's archive is read on its first
+     * use and kept until release(). */
+    const Texture* cardTexture(s32 classIndex, std::string_view costume);
     /** A pickup count's icon, the same way: STATIC's, else the level's own (setCountTextures). */
     const Texture* countTexture(std::string_view icon);
 
@@ -170,6 +179,10 @@ private:
     const StringTable* m_strings = nullptr;
     TextureSet m_select;
     TextureSet m_static;
+    std::filesystem::path m_players; ///< PLAYERS, where the costumes keep their own cards
+    /** The hidden costumes' archives asked for, by `<class>/<costume>`; one not found stays
+     * here unloaded, so it is looked for once. */
+    std::map<std::string, TextureSet, std::less<>> m_costumes;
     TextureSet* m_countTextures = nullptr; ///< borrowed level-specific pickup icons
     BitmapFont m_fontInitials;
     BitmapFont m_fontScore;

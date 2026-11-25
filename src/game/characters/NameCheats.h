@@ -20,6 +20,9 @@ struct HiddenCostume {
 /** The enabled name-selected costumes. Developer-only costumes are excluded. */
 std::span<const HiddenCostume> hiddenCostumes();
 const HiddenCostume* hiddenCostume(std::string_view name);
+/** The folder of the hidden costume `save` wears, under its class's in PLAYERS: its name's,
+ * when the name's costume is of the class it plays. Empty for an ordinary character. */
+std::string_view hiddenCostumeDirectory(const CharacterSave& save);
 
 /** Apply the six-character name codes when a character is selected or enters a level.
  * Codes are case-sensitive; EGG911 selects a permanent form outside the item inventory.

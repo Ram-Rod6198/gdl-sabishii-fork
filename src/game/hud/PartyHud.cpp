@@ -7,6 +7,7 @@
 #include "engine/core/Types.h"
 #include "engine/io/NativeStateDigest.h"
 
+#include "game/characters/NameCheats.h"
 #include "game/characters/Progression.h"
 #include "game/combat/PowerupFlags.h"
 #include "game/players/PickupVoices.h"
@@ -188,6 +189,7 @@ StatusBoxView PartyHud::status(s32 player, std::span<const PlayerRuntime> player
     view.mode = StatusBoxView::Mode::Status;
     view.active = true;
     view.classIndex = save.character;
+    view.costume = hiddenCostumeDirectory(save);
     view.color = save.color;
     view.name = save.name;
     view.level = experienceLevel(save.experience());

@@ -5,6 +5,7 @@
 
 #include "engine/core/Types.h"
 
+#include "game/characters/NameCheats.h"
 #include "game/effects/ShopFrameLight.h"
 #include "game/scenes/AfterLevelScene.h"
 #include "game/shop/InventoryPanel.h"
@@ -345,6 +346,7 @@ void AfterLevelScene::drawLane(const ShopLane& lane) {
     status.mode = StatusBoxView::Mode::Status;
     status.active = true;
     status.classIndex = save.character;
+    status.costume = hiddenCostumeDirectory(save);
     status.color = save.color;
     status.name = save.name;
     status.level = experienceLevel(save.experience());

@@ -10,6 +10,7 @@
 #include "engine/core/Log.h"
 #include "engine/core/Types.h"
 
+#include "game/characters/NameCheats.h"
 #include "game/characters/Progression.h"
 #include "game/players/TurboMeter.h"
 #include "game/scenes/MapPicture.h"
@@ -46,6 +47,7 @@ void LevelLoadingScreen::open(RenderDevice& device, const GameServices& services
         status.mode = StatusBoxView::Mode::Status;
         status.active = true;
         status.classIndex = save.character;
+        status.costume = hiddenCostumeDirectory(save);
         status.color = save.color;
         status.name = save.name;
         status.level = experienceLevel(save.experience());

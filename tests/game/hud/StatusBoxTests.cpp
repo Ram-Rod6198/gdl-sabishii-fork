@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <array>
 #include <filesystem>
 #include <format>
@@ -18,7 +19,9 @@
 #include "FakeRenderDevice.h"
 #include "RecordedQuads.h"
 #include "TestSupport.h"
+#include "game/characters/CharacterSave.h"
 #include "game/characters/ClassData.h"
+#include "game/characters/NameCheats.h"
 #include "game/combat/ArmorFlags.h"
 #include "game/combat/DamageTypes.h"
 #include "game/combat/PowerupFlags.h"
@@ -337,6 +340,80 @@ TEST_CASE("the boxes lend the textures they draw with", "[game][screens][relic-s
     CHECK(painter.staticTexture("SM_KEY_BLU") == nullptr);
     CHECK(painter.selectTexture("S4_WAR") == nullptr);
     CHECK(painter.countTexture(levelIcon) == nullptr);
+}
+
+TEST_CASE("a hidden costume's box shows the costume's own card, else its class's",
+          "[game][screens][assets]") {
+    const auto root = test::assetOrSkip("STATIC/textures.ngc").parent_path().parent_path();
+    test::assetOrSkip("PLAYERS/WAR/GEC/objects.ngc");
+    test::FakeRenderDevice device;
+    StatusBoxPainter painter;
+    REQUIRE(painter.load(device, root, nullptr));
+
+    // An ordinary character, a costume with no card of its own (Old Thor's) and a folder that
+    // is not there all show the class's card from SELECT.
+    const Texture* warrior = painter.selectTexture("S4_WAR");
+    REQUIRE(warrior != nullptr);
+    CHECK(painter.cardTexture(0, {}) == warrior);
+    CHECK(painter.cardTexture(0, "HIR") == warrior);
+    CHECK(painter.cardTexture(0, "NO_SUCH_COSTUME") == warrior);
+    CHECK(painter.cardTexture(kSumnerClass, {}) == painter.selectTexture("S4_SUM"));
+
+    // Every other name's costume carries its own, read once and lent again.
+    for (const HiddenCostume& costume : hiddenCostumes()) {
+        CAPTURE(costume.name, costume.directory);
+        if (costume.directory == "HIR") {
+            continue;
+        }
+        const Texture* card = painter.cardTexture(costume.character, costume.directory);
+        REQUIRE(card != nullptr);
+        CHECK(card != painter.selectTexture(std::format("S4_{}", classCode(costume.character))));
+        CHECK(card->width() == warrior->width());
+        CHECK(card->height() == warrior->height());
+        const u32 created = device.texturesCreated;
+        CHECK(painter.cardTexture(costume.character, costume.directory) == card);
+        CHECK(device.texturesCreated == created);
+    }
+
+    // The box draws with it.
+    const Texture* own = painter.cardTexture(0, "GEC");
+    Canvas canvas;
+    StatusBoxView view;
+    view.mode = StatusBoxView::Mode::Status;
+    view.active = true;
+    view.classIndex = 0;
+    view.costume = "GEC";
+    view.name = "CAS400";
+    const auto drawnWith = [&](const Texture* texture) {
+        device.draws.clear();
+        canvas.begin(device, Mat4{1.0f});
+        painter.draw(canvas, 0, view, StatusBoxPainter::Strip::Play);
+        canvas.end();
+        return std::ranges::any_of(device.draws, [&](const test::RecordedDraw& recorded) {
+            return recorded.texture == texture;
+        });
+    };
+    CHECK(drawnWith(own));
+    CHECK_FALSE(drawnWith(warrior));
+    view.costume.clear();
+    CHECK(drawnWith(warrior));
+    CHECK_FALSE(drawnWith(own));
+
+    painter.release();
+    CHECK(painter.cardTexture(0, "GEC") == nullptr);
+}
+
+TEST_CASE("a name's hidden costume is worn only by the class it belongs to",
+          "[game][name-cheats]") {
+    CharacterSave save;
+    save.name = "CAS400";
+    save.character = 0;
+    CHECK(hiddenCostumeDirectory(save) == "GEC");
+    save.character = 1;
+    CHECK(hiddenCostumeDirectory(save).empty());
+    save.name = "TESTER";
+    save.character = 0;
+    CHECK(hiddenCostumeDirectory(save).empty());
 }
 
 TEST_CASE("status boxes need the unpacked panels", "[game][screens]") {

@@ -74,6 +74,12 @@ const HiddenCostume* hiddenCostume(std::string_view name) {
     return nullptr;
 }
 
+std::string_view hiddenCostumeDirectory(const CharacterSave& save) {
+    const HiddenCostume* hidden = hiddenCostume(save.name);
+    return hidden != nullptr && hidden->character == save.character ? hidden->directory
+                                                                    : std::string_view{};
+}
+
 void restoreNameForm(CharacterSave& save) {
     for (auto& progress : save.classes) {
         restoreNameForm(progress.inventory, save.name);

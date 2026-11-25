@@ -91,9 +91,7 @@ std::string_view costumeOverride(const CharacterSave& save) {
     if (save.character == kSumnerClass) {
         return kSumnerCostume;
     }
-    const auto* hidden = hiddenCostume(save.name);
-    return hidden != nullptr && hidden->character == save.character ? hidden->directory
-                                                                    : std::string_view{};
+    return hiddenCostumeDirectory(save);
 }
 
 std::filesystem::path PlayerFigure::costumeDirectory(const std::filesystem::path& unpackedRoot,

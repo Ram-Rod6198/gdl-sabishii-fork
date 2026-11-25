@@ -9,6 +9,7 @@
 #include "engine/core/Types.h"
 #include "engine/platform/Paths.h"
 
+#include "game/characters/NameCheats.h"
 #include "game/characters/Progression.h"
 #include "game/players/PickupVoices.h"
 #include "game/widgets/MenuFont.h"
@@ -278,6 +279,9 @@ void PlayerSelectScene::drawStatusBox(const SelectLane& lane) {
     default: view.mode = StatusBoxView::Mode::Plain; break;
     }
     view.classIndex = lane.boxClass();
+    if (lane.save().character == view.classIndex) {
+        view.costume = hiddenCostumeDirectory(lane.save());
+    }
     view.color = lane.active() ? lane.boxColor() : lane.index();
     view.name = lane.save().name;
     view.level = experienceLevel(lane.save().experience());
