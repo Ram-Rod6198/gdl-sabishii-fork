@@ -78,6 +78,10 @@ TEST_CASE("expanded shop and autosave are independent opt-in settings", "[game][
     REQUIRE(config.loadFile(test::dataDirectory() / "config.json"));
     CHECK_FALSE(config.game.expandedShop);
     CHECK_FALSE(config.game.autoSave);
+    CHECK_FALSE(config.game.quitLevelChoice);
+    config.mergeJson(R"({"game":{"quitLevelChoice":true}})");
+    CHECK(config.game.quitLevelChoice);
+    CHECK_FALSE(config.game.autoSave);
     config.mergeJson(R"({"game":{"expandedShop":true}})");
     CHECK(config.game.expandedShop);
     CHECK_FALSE(config.game.autoSave);
@@ -828,6 +832,7 @@ constexpr std::string_view kDefaultSettingsFile = R"json({
     "expandedShop": false,
     "mechanics": {},
     "multiplayer": "normal",
+    "quitLevelChoice": false,
     "soloCamera": false
   },
   "save": {
@@ -1302,6 +1307,7 @@ constexpr std::string_view kChangedSettingsFile = R"json({
       "rage": true
     },
     "multiplayer": "stun",
+    "quitLevelChoice": true,
     "soloCamera": true
   },
   "save": {
@@ -1364,6 +1370,7 @@ GameConfig awayFromDefaults() {
     config.combat.autoAim = false;
     config.game.expandedShop = true;
     config.game.autoSave = true;
+    config.game.quitLevelChoice = true;
     config.game.mechanics = {{"calm", false}, {"rage", true}};
 
     auto& menu = config.menu;

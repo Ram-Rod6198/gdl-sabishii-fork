@@ -42,6 +42,10 @@ public:
      * in the tower). */
     static std::vector<PartyMember> abandoned(std::span<const PlayerRuntime> players,
                                               std::span<const PartyMember> party);
+    /** `party` (the party as it stands) as it leaves a level it quits but keeps the takings
+     * of: all it has gathered, the fallen as they came in, everyone standing again in the
+     * tower and nothing left to tally. The level is not beaten by it. */
+    static std::vector<PartyMember> quitKeeping(std::span<const PartyMember> party);
     /** What each standing member gained in the level. */
     static std::vector<LevelResults> results(std::span<const PlayerRuntime> players);
 };

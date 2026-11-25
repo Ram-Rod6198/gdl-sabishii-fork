@@ -149,6 +149,15 @@ std::vector<PartyMember> PartyRecords::abandoned(std::span<const PlayerRuntime> 
     return members;
 }
 
+std::vector<PartyMember> PartyRecords::quitKeeping(std::span<const PartyMember> party) {
+    std::vector<PartyMember> members(party.begin(), party.end());
+    for (PartyMember& member : members) {
+        member.fallen = false;
+        member.resultsCheckpoint.reset();
+    }
+    return members;
+}
+
 std::vector<LevelResults> PartyRecords::results(std::span<const PlayerRuntime> players) {
     std::vector<LevelResults> results;
     for (const PlayerRuntime& runtime : players) {

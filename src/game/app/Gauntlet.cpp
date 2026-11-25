@@ -27,6 +27,7 @@
 #include "game/characters/AutoSave.h"
 #include "game/config/ControlProfiles.h"
 #include "game/enemies/Enemies.h"
+#include "game/party/PartyRecords.h"
 #include "game/party/PlayInputReader.h"
 #include "game/rollback/ConsoleAction.h"
 #include "game/scenes/ConsoleTravel.h"
@@ -1075,7 +1076,8 @@ void Gauntlet::updatePause(f64 deltaSeconds, const SceneInput& sceneInput) {
         }
         return;
     }
-    if (outcome == PauseOutcome::ReturnTower) {
+    if (outcome == PauseOutcome::ReturnTower || outcome == PauseOutcome::ReturnTowerSaved ||
+        outcome == PauseOutcome::ReturnTowerUnsaved) {
         // An imported world's Quit Level goes back to its own tower, whether or not a level
         // waits parked behind the visit.
         if (m_play->world.imported()) {
@@ -1084,15 +1086,21 @@ void Gauntlet::updatePause(f64 deltaSeconds, const SceneInput& sceneInput) {
         }
         // Quitting a level gives up what it gave, as dying in it does: the original kills
         // the whole party (opt_restart_request), and init_shop with nobody standing skips
-        // the tally and the shop for the tower, so neither is shown here.
-        party = m_play->scene.abandonedParty(party);
+        // the tally and the shop for the tower, so neither is shown here. Save & Exit, where
+        // the Quit Level Choice option offers it, keeps what the party has gathered instead;
+        // the level is no more beaten for it.
+        const bool keeping = outcome == PauseOutcome::ReturnTowerSaved;
+        party = keeping ? PartyRecords::quitKeeping(party) : m_play->scene.abandonedParty(party);
         Journey journey;
         journey.destination = LevelRef::tower();
         journey.party = party;
         journey.options.welcome = false;
         journey.options.arriving = true;
         journey.options.arrivalWorld = static_cast<u32>(std::max(m_play->world.ref().realmId, 0));
-        autoSave(party);
+        // Exit Without Saving writes no file; the slots stay as the last save left them.
+        if (outcome != PauseOutcome::ReturnTowerUnsaved) {
+            autoSave(party);
+        }
         m_play->scene.close();
         m_loadingPicture.load(renderDevice(), m_options.unpackedDirectory);
         m_loadingPicture.cover();

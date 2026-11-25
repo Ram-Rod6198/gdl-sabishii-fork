@@ -21,6 +21,8 @@ constexpr s32 kQuitDesktopCode = 8;
 constexpr s32 kReturnMainMenuCode = 9;
 constexpr s32 kQuitGameCode = 10;
 constexpr s32 kConfirmYes = 1;
+constexpr s32 kSaveAndExitCode = 11;
+constexpr s32 kExitWithoutSavingCode = 12;
 constexpr std::string_view kSealTexture = "LOGO_BURN1";
 constexpr Rect kSealArea{290, 142, 224, 172};
 } // namespace
@@ -42,6 +44,9 @@ bool PauseMenu::open(RenderDevice& device, const GameServices& services,
     m_player = player;
     m_inTower = level == nullptr || level->isTower();
     m_inSecretWorld = level != nullptr && level->ref().isSecret();
+    // An imported world's Quit Level keeps its own rules, and the tower has none.
+    m_quitChoice = !m_inTower && level->imported() == nullptr && services.config != nullptr &&
+                   services.config->game.autoSave && services.config->game.quitLevelChoice;
     if (std::ranges::none_of(party,
                              [player](const auto& member) { return member.player == player; })) {
         return false;
@@ -229,6 +234,16 @@ void PauseMenu::showMain() {
  * in, with only the title and No then Yes, No first. */
 void PauseMenu::showQuitLevel() {
     m_page = Page::QuitLevel;
+    if (m_quitChoice) {
+        // The same dialog, asking how to leave: neither row stays, the back control does.
+        auto menu =
+            MenuDefinition::confirmation(text("pause.quitLevelConfirm"), text("pause.saveAndExit"),
+                                         text("pause.exitWithoutSaving"));
+        menu.items[0].code = kSaveAndExitCode;
+        menu.items[1].code = kExitWithoutSavingCode;
+        m_menu.open(menu, m_text, m_screen);
+        return;
+    }
     m_menu.open(MenuDefinition::confirmation(text("pause.abortConfirm"), text("pause.no"),
                                              text("pause.yes")),
                 m_text, m_screen);
@@ -283,6 +298,12 @@ PauseOutcome PauseMenu::update(f64 seconds, const MenuInput& rawInput) {
     }
     playMenuSound(event, false);
     if (m_page == Page::QuitLevel) {
+        if (event.action == MenuAction::Choice && event.code == kSaveAndExitCode) {
+            return dismiss(PauseOutcome::ReturnTowerSaved);
+        }
+        if (event.action == MenuAction::Choice && event.code == kExitWithoutSavingCode) {
+            return dismiss(PauseOutcome::ReturnTowerUnsaved);
+        }
         if (event.action == MenuAction::Choice && event.code == kConfirmYes) {
             return dismiss(PauseOutcome::ReturnTower);
         }

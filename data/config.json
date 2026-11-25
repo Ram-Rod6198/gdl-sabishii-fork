@@ -43,6 +43,7 @@
   "game": {
     "expandedShop": false,
     "autoSave": false,
+    "quitLevelChoice": false,
     "mechanics": {},
     "difficulty": "normal",
     "multiplayer": "normal",

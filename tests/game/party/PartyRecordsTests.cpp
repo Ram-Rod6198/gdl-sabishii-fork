@@ -105,6 +105,39 @@ TEST_CASE("the party goes on with what it gathered, the fallen as they came, the
     CHECK(PartyRecords::members(players).size() == 1);
 }
 
+TEST_CASE("a level quit with its takings kept differs from one given up only in what is kept",
+          "[party-records][quit]") {
+    auto players = twoPlayers();
+    PartyRecords::award(players, 2, 100, true, nullptr);
+    PartyRecords::award(players, 3, 40, false, nullptr);
+    players[0].actor.save().gold = 250;
+    players[1].life = PlayerLife::InTower; // the fallen leave as they came, either way
+    const auto standing = PartyRecords::members(players);
+    REQUIRE(standing.size() == 2);
+    REQUIRE(standing[0].resultsCheckpoint.has_value());
+    REQUIRE(standing[1].fallen);
+
+    const auto kept = PartyRecords::quitKeeping(standing);
+    REQUIRE(kept.size() == 2);
+    CHECK(kept[0].player == 2);
+    CHECK(kept[0].save == standing[0].save);
+    CHECK(kept[0].save.experience() == 100);
+    CHECK(kept[0].save.gold == 250);
+    CHECK(kept[0].save.progress().lifetime.enemiesKilled == 1);
+    CHECK_FALSE(kept[0].resultsCheckpoint.has_value()); // nothing is tallied for a level quit
+    CHECK(kept[1].player == 3);
+    CHECK(kept[1].slot == 4U);
+    CHECK_FALSE(kept[1].fallen); // it stands again in the tower
+    CHECK(kept[1].save.experience() == 0);
+
+    const auto abandoned = PartyRecords::abandoned(players, standing);
+    REQUIRE(abandoned.size() == 2);
+    CHECK(abandoned[0].save.experience() == 0);
+    CHECK(abandoned[0].save.gold == 0);
+    CHECK(abandoned[1].save == kept[1].save);
+    CHECK(abandoned[1].slot == kept[1].slot);
+}
+
 TEST_CASE("combo experience applies the partner's own scaling without sharing kill rewards",
           "[game][screens][party-records]") {
     auto players = twoPlayers(); // controller identities 2/3, combo indices 0/1

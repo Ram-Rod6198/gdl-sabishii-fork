@@ -104,6 +104,10 @@ struct CombatConfig {
 struct GameOptionsConfig {
     bool expandedShop = false;
     bool autoSave = false;
+    /** With Auto-Save on, Quit Level asks whether to save and leave, keeping what the party
+     * has gathered in the level, or to leave without saving, giving it up as the original
+     * does. Off, Quit Level is the original's Abort Level question. */
+    bool quitLevelChoice = false;
     /** The additive mechanics switched on or off, by `MechanicDescriptor::id`; one unsaid is
      * off. Kept whole, so a build without a mechanic still keeps a player's choice for it. */
     std::map<std::string, bool, std::less<>> mechanics;

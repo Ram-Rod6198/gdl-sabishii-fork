@@ -764,6 +764,85 @@ TEST_CASE("level abort uses the retail parchment dialog without character-file w
         (outcome == PauseOutcome::ReturnTower || menu.update(1, {}) == PauseOutcome::ReturnTower));
 }
 
+TEST_CASE("Quit Level asks to save or not only with Auto-Save and Quit Level Choice both on",
+          "[pause][assets][quit]") {
+    test::FakeRenderDevice device;
+    StringTable strings;
+    REQUIRE(strings.load(test::dataDirectory() / "text", "en"));
+    const auto root =
+        test::assetOrSkip("LEVELS/LEVELG1/WORLDS.PS2").parent_path().parent_path().parent_path();
+    LevelCatalog catalog;
+    REQUIRE(catalog.load(root));
+    const auto level = catalog.byName("G1");
+    REQUIRE(level);
+    LevelWorld world;
+    REQUIRE(world.load(device, root, *level));
+    GameConfig config;
+    GameServices context;
+    context.unpackedRoot = root;
+    context.strings = &strings;
+    context.config = &config;
+    const std::array party{PartyMember{}};
+    PauseMenu menu;
+    MenuInput down;
+    down.down = true;
+    MenuInput select;
+    select.select = true;
+    MenuInput back;
+    back.back = true;
+    const auto openQuitLevel = [&] {
+        REQUIRE(menu.open(device, context, party, 0, nullptr, &world));
+        menu.update(1.0 / 60, down);
+        menu.update(1.0 / 60, select);
+    };
+    const auto settled = [&](PauseOutcome outcome) {
+        return outcome == PauseOutcome::Running ? menu.update(1, {}) : outcome;
+    };
+
+    SECTION("either switch alone leaves the original's Abort Level question") {
+        const bool autoSave = GENERATE(false, true);
+        config.game.autoSave = autoSave;
+        config.game.quitLevelChoice = !autoSave;
+        openQuitLevel();
+        CHECK_FALSE(menu.offersQuitChoice());
+        CHECK(menu.menu().definition().title == "Abort Level?");
+        CHECK(menu.menu().definition().items[0].text == "No");
+        CHECK(menu.menu().definition().items[1].text == "Yes");
+    }
+    SECTION("the tower's menu is never asked") {
+        config.game.autoSave = true;
+        config.game.quitLevelChoice = true;
+        REQUIRE(menu.open(device, context, party, 0));
+        CHECK_FALSE(menu.offersQuitChoice());
+    }
+    SECTION("both on, the dialog offers Save & Exit first and Exit Without Saving") {
+        config.game.autoSave = true;
+        config.game.quitLevelChoice = true;
+        openQuitLevel();
+        REQUIRE(menu.offersQuitChoice());
+        const auto& definition = menu.menu().definition();
+        CHECK(definition.title == "Quit Level?");
+        REQUIRE(definition.items.size() == 2);
+        CHECK(definition.items[0].text == "Save & Exit");
+        CHECK(definition.items[1].text == "Exit Without Saving");
+        CHECK(definition.backdropWidth == 320); // the retail dialog's parchment
+        CHECK(menu.menu().selection() == 0);
+        menu.update(1, {});
+        SECTION("Save & Exit") {
+            CHECK(settled(menu.update(1.0 / 60, select)) == PauseOutcome::ReturnTowerSaved);
+        }
+        SECTION("Exit Without Saving") {
+            menu.update(1.0 / 60, down);
+            CHECK(settled(menu.update(1.0 / 60, select)) == PauseOutcome::ReturnTowerUnsaved);
+        }
+        SECTION("the back control stays in the level") {
+            CHECK(menu.update(1.0 / 60, back) == PauseOutcome::Running);
+            CHECK(menu.update(1, {}) == PauseOutcome::Running);
+            CHECK(menu.menu().definition().items[1].text == strings.get("pause.quitLevel"));
+        }
+    }
+}
+
 TEST_CASE("the secret world cannot be quit from its menu", "[pause][assets]") {
     // options.c 1462: OPT_QUITLEVEL's value is -1 (greyed) while sMusicTrackHi is 12.
     test::FakeRenderDevice device;

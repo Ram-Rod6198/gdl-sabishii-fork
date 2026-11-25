@@ -129,9 +129,10 @@ template <class Config> struct Switch {
     std::string_view label;
     bool Config::*field = nullptr;
 };
-constexpr std::array<Switch<GameOptionsConfig>, 2> kGameSwitches{
+constexpr std::array<Switch<GameOptionsConfig>, 3> kGameSwitches{
     {{3, "settings.expandedShop", &GameOptionsConfig::expandedShop},
-     {4, "settings.autoSave", &GameOptionsConfig::autoSave}}};
+     {4, "settings.autoSave", &GameOptionsConfig::autoSave},
+     {8, "settings.quitLevelChoice", &GameOptionsConfig::quitLevelChoice}}};
 constexpr std::array<Switch<CombatConfig>, 4> kCombatSwitches{
     {{0, "settings.autoMelee", &CombatConfig::autoMelee},
      {1, "settings.enemyHealthBars", &CombatConfig::enemyHealthBars},

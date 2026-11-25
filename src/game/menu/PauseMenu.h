@@ -26,6 +26,10 @@ enum class PauseOutcome : u8 {
     Manage,
     Title,
     ReturnTower,
+    /** Quit Level's Save & Exit: back to the tower with all the party has gathered, saved. */
+    ReturnTowerSaved,
+    /** Quit Level's Exit Without Saving: the level given up, and no file written. */
+    ReturnTowerUnsaved,
     Shop,
     Inventory,
     Desktop ///< the player, asked, quits the game to the desktop
@@ -59,6 +63,9 @@ public:
     void render(RenderDevice& device, const Mat4& projection, f32 width, f32 height);
     const OptionMenu& menu() const { return m_menu; }
     bool arrowBound() const { return m_arrow.bound(); }
+    /** Whether Quit Level asks Save & Exit or Exit Without Saving in place of Abort Level:
+     * in a Dark Legacy level, with Auto-Save and Quit Level Choice both on. */
+    bool offersQuitChoice() const { return m_quitChoice; }
 
 private:
     /** Quit Game on the tower's main page leads to QuitGame, the choice between the main
@@ -108,5 +115,6 @@ private:
     bool m_open = false;
     bool m_inTower = true;
     bool m_inSecretWorld = false;
+    bool m_quitChoice = false;
 };
 } // namespace gdl::game
