@@ -313,6 +313,7 @@ private:
      * scenes find the looks their HUD may be drawn in. */
     OnlineRun::Links onlineLinks();
     void applyWindowIcon();
+    void applyCursor(f32 scale);
     void renderScene(RenderDevice& device);
 
     GameOptions m_options;

@@ -1307,7 +1307,7 @@ TEST_CASE("Controls is available in every scope and opening it does not mutate b
         f.menu.menu().focus(static_cast<usize>(controls - items.begin()));
         f.select();
         CHECK(f.menu.page() == SettingsMenu::Page::Controls);
-        CHECK(f.menu.menu().definition().items.size() == 4);
+        CHECK(f.menu.menu().definition().items.size() == 5);
         CHECK(f.config.toJson() == bindings);
         CHECK(f.settings.writes == 0);
     }
@@ -2037,7 +2037,8 @@ TEST_CASE("the list of players in Controls reads at the choice pages' size",
     CHECK(definition.y == -1);
     CHECK(definition.itemPositions.empty());
     CHECK(definition.items.front().text == "Player 1");
-    CHECK(definition.items.back().text == "Player 4");
+    CHECK(definition.items[3].text == "Player 4");
+    CHECK(definition.items.back().text == "Cursor Size 100%");
     f.select();
     // A player's bindings keep their small rows, their own value column and a window of a
     // few rows over the Apply and Restore Defaults row.
@@ -2046,6 +2047,71 @@ TEST_CASE("the list of players in Controls reads at the choice pages' size",
     CHECK(definition.visibleRows == ControlSettings::kVisibleRows);
     CHECK(definition.tailPositions.size() == 2);
     CHECK(definition.items.front().value == "Automatic");
+}
+
+TEST_CASE("the mouse pointer's size is stepped and saved under the list of players",
+          "[settings][controls][cursor]") {
+    Fixture f;
+    f.menu.menu().focus(4);
+    f.select();
+    REQUIRE(f.menu.page() == SettingsMenu::Page::Controls);
+    const auto& items = f.menu.menu().definition().items;
+    REQUIRE(items.size() == 5);
+    f.menu.menu().focus(4);
+    CHECK(f.config.display.cursorScale == 1.0f);
+
+    // A turn of the row steps a quarter and is saved at once; the page stays where it is.
+    f.right();
+    CHECK(f.config.display.cursorScale == 1.25f);
+    CHECK(f.settings.writes == 1);
+    CHECK(items[4].text == "Cursor Size 125%");
+    CHECK(f.menu.menu().selection() == 4);
+    CHECK(f.menu.depth() == 1);
+    f.release();
+    MenuInput left;
+    left.left = true;
+    f.menu.update(left, 1);
+    f.release();
+    f.menu.update(left, 1);
+    CHECK(f.config.display.cursorScale == 0.75f);
+    CHECK(items[4].text == "Cursor Size 75%");
+    f.release();
+    // A choice of the row steps it up, and opens nobody's controls.
+    f.select();
+    CHECK(f.config.display.cursorScale == 1.0f);
+    CHECK(f.menu.depth() == 1);
+    f.release();
+
+    // From either limit a step goes round to the other.
+    for (s32 step = 0; step < 8; ++step) {
+        f.right();
+        f.release();
+    }
+    CHECK(f.config.display.cursorScale == DisplayConfig::kCursorScaleMax);
+    CHECK(items[4].text == "Cursor Size 300%");
+    f.right();
+    CHECK(f.config.display.cursorScale == DisplayConfig::kCursorScaleMin);
+    CHECK(items[4].text == "Cursor Size 50%");
+    f.release();
+    f.menu.update(left, 1);
+    CHECK(f.config.display.cursorScale == DisplayConfig::kCursorScaleMax);
+    CHECK(items[4].text == "Cursor Size 300%");
+    f.release();
+
+    // A save refused leaves the size, and the row, as they were.
+    const auto writes = f.settings.writes;
+    f.settings.fail = true;
+    f.right();
+    CHECK(f.config.display.cursorScale == DisplayConfig::kCursorScaleMax);
+    CHECK(f.settings.writes == writes);
+    CHECK(items[4].text == "Cursor Size 300%");
+    f.settings.fail = false;
+    f.release();
+
+    // The players above it open as before.
+    f.menu.menu().focus(0);
+    f.select();
+    CHECK(f.menu.depth() == 2);
 }
 
 TEST_CASE("Controls is heard: moves, choices and the depth of a step back",

@@ -14,6 +14,7 @@
     "ambientOcclusion": false,
     "smoothSprites": false,
     "maxFrameRate": 30,
+    "cursorScale": 1.0,
     "sampleCount": 1,
     "textureFiltering": 8,
     "hudStyle": "darkLegacy"

@@ -799,6 +799,7 @@ constexpr std::string_view kDefaultSettingsFile = R"json({
     "ambientOcclusion": false,
     "authoredSilhouettes": true,
     "bloom": false,
+    "cursorScale": 1.0,
     "depthOfField": false,
     "frameHeight": 448,
     "frameWidth": 640,
@@ -1270,6 +1271,7 @@ constexpr std::string_view kChangedSettingsFile = R"json({
     "ambientOcclusion": true,
     "authoredSilhouettes": false,
     "bloom": true,
+    "cursorScale": 2.0,
     "depthOfField": true,
     "frameHeight": 600,
     "frameWidth": 800,
@@ -1336,6 +1338,7 @@ GameConfig awayFromDefaults() {
     display.vsync = false;
     display.depthOfField = true;
     display.bloom = true;
+    display.cursorScale = 2.0f;
     display.ambientOcclusion = true;
     display.smoothSprites = true;
     display.authoredSilhouettes = false;
@@ -1893,6 +1896,27 @@ TEST_CASE("a profile refuses a binding name it does not know, where the shared b
     CHECK(merged.warnings.empty());
     CHECK(merged.failure == nullptr);
     CHECK(again.toJson() == lone.toJson());
+}
+
+TEST_CASE("the mouse pointer's size is kept in the settings and held within its limits",
+          "[config][cursor]") {
+    GameConfig config;
+    CHECK(config.display.cursorScale == 1.0f);
+    config.mergeJson(R"({"display":{"cursorScale":1.75}})");
+    CHECK(config.display.cursorScale == 1.75f);
+    GameConfig restored;
+    restored.mergeJson(config.toJson());
+    CHECK(restored.display.cursorScale == 1.75f);
+    // A file that says nothing of it leaves it alone.
+    restored.mergeJson(R"({"display":{"vsync":false}})");
+    CHECK(restored.display.cursorScale == 1.75f);
+    // Out of range it is brought to the nearer limit.
+    config.mergeJson(R"({"display":{"cursorScale":0.01}})");
+    CHECK(config.display.cursorScale == DisplayConfig::kCursorScaleMin);
+    config.mergeJson(R"({"display":{"cursorScale":40}})");
+    CHECK(config.display.cursorScale == DisplayConfig::kCursorScaleMax);
+    config.mergeJson(R"({"display":{"cursorScale":-2}})");
+    CHECK(config.display.cursorScale == DisplayConfig::kCursorScaleMin);
 }
 
 } // namespace

@@ -46,6 +46,10 @@ struct DisplayConfig {
     u32 sampleCount = 1;      ///< MSAA samples: 1 (off), 2 or 4; limited by the graphics device
     u32 textureFiltering = 8; ///< off (0), trilinear (1), or 2/4/8/16x anisotropic
     u32 maxFrameRate = 30;    ///< menu presentation cap; 0 follows the monitor, even without V-Sync
+    /** The mouse pointer's size as a multiple of its own, between the two limits. */
+    static constexpr f32 kCursorScaleMin = 0.5f;
+    static constexpr f32 kCursorScaleMax = 3.0f;
+    f32 cursorScale = 1.0f;
     /** Compare against the live client size, which can differ after a manual resize. */
     bool matchesWindow(WindowMode mode, Extent2D size) const;
 };

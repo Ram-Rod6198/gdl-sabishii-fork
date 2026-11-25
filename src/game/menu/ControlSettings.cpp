@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 
 #include "game/config/ControlProfiles.h"
 #include "game/menu/SettingsRows.h"
@@ -14,6 +15,13 @@ constexpr s32 kApply = 104;
 constexpr s32 kRumble = 105;
 constexpr s32 kScheme = 106;
 constexpr s32 kGestures = 107; ///< the potion key's hold and double tap
+/** The mouse pointer's size, under the list of players. */
+constexpr s32 kCursorSize = 108;
+// The pointer's size in quarters of its own, from one of the settings' limits to the other.
+constexpr s32 kFewestQuarters = 2;
+constexpr s32 kMostQuarters = 12;
+static_assert(kFewestQuarters * 0.25f == DisplayConfig::kCursorScaleMin);
+static_assert(kMostQuarters * 0.25f == DisplayConfig::kCursorScaleMax);
 constexpr s32 kActionCount = 2;
 constexpr s32 kActionY = 268;
 constexpr s32 kActionGap = 24;
@@ -30,6 +38,16 @@ constexpr s32 kEditorValueX = 282;
 constexpr s32 kEditorValueWidth = 148;
 MenuEvent moved() {
     return {MenuAction::Moved, 0};
+}
+s32 cursorQuarters(f32 scale) {
+    const f32 held = std::isfinite(scale) ? scale : 1.0f;
+    return std::clamp(static_cast<s32>(std::lround(held * 4.0f)), kFewestQuarters, kMostQuarters);
+}
+/** The size a step from `scale` gives, round from one limit to the other. */
+f32 steppedCursorScale(f32 scale, s32 direction) {
+    constexpr s32 kChoices = kMostQuarters - kFewestQuarters + 1;
+    const s32 index = cursorQuarters(scale) - kFewestQuarters + (direction < 0 ? -1 : 1);
+    return static_cast<f32>((index + kChoices) % kChoices + kFewestQuarters) * 0.25f;
 }
 /** Whether the potion key's gestures are on for the device a profile is assigned. */
 bool gesturesOf(const PlayerControlConfig& profile, bool keyboard) {
@@ -105,6 +123,11 @@ void ControlSettings::define(MenuDefinition& definition, const TextPainter& pain
         for (s32 player = 0; player < 4; ++player) {
             rows.choice(text("controls.player") + " " + std::to_string(player + 1), player);
         }
+        // The mouse pointer is nobody's in particular: its size stands under the players, and
+        // a choice or a turn of the row steps it at once.
+        rows.choice(text("controls.cursorSize") + " " +
+                        std::to_string(cursorQuarters(m_draft.display.cursorScale) * 25) + "%",
+                    kCursorSize);
         rows.fit(1.0f, kCanvasWidth);
         return;
     }
@@ -358,6 +381,20 @@ ControlSettings::update(const MenuInput& input, s32 ticks, OptionMenu& menu, Gam
             return {moved()};
         }
     }
+    const auto stepCursor = [&](s32 direction) {
+        auto next = config;
+        next.display.cursorScale = steppedCursorScale(config.display.cursorScale, direction);
+        if (persist && persist(next)) {
+            config = next;
+            m_draft.display.cursorScale = next.display.cursorScale;
+        }
+        rebuild(menu.selection());
+    };
+    if (m_player < 0 && (mapped.left || mapped.right) && !mapped.back && !mapped.select &&
+        menu.definition().items[static_cast<usize>(menu.selection())].code == kCursorSize) {
+        stepCursor(mapped.left ? -1 : 1);
+        return {moved()};
+    }
     auto event = menu.update(mapped, ticks);
     const bool turned =
         (mapped.left || mapped.right) && !mapped.back && !mapped.select && m_player >= 0;
@@ -379,6 +416,10 @@ ControlSettings::update(const MenuInput& input, s32 ticks, OptionMenu& menu, Gam
         return {{MenuAction::Back, 0}};
     }
     if (event.action != MenuAction::Choice) {
+        return {event};
+    }
+    if (m_player < 0 && event.code == kCursorSize) {
+        stepCursor(1);
         return {event};
     }
     if (m_player < 0) {

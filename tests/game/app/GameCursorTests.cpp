@@ -1,3 +1,6 @@
+#include <cmath>
+#include <limits>
+
 #include <catch2/catch_test_macros.hpp>
 
 #include "engine/assets/TextureSet.h"
@@ -65,6 +68,79 @@ TEST_CASE("marker reduction trims padding, points up-left and does not bleed hid
     CHECK(other->hotX == cursor->hotX);
     CHECK(other->hotY == cursor->hotY);
     CHECK(other->image.pixels == cursor->image.pixels);
+}
+
+TEST_CASE("the pointer is drawn at the size asked, its tip where the marker's is", "[cursor]") {
+    CHECK(GameCursor::sizeAt(1.0f) == GameCursor::kSize);
+    CHECK(GameCursor::sizeAt(0.5f) == 20);
+    CHECK(GameCursor::sizeAt(1.25f) == 50);
+    CHECK(GameCursor::sizeAt(3.0f) == 120);
+    // Out of range it is held at a limit; no number at all is the pointer's own size.
+    CHECK(GameCursor::sizeAt(0.0f) == 20);
+    CHECK(GameCursor::sizeAt(-4.0f) == 20);
+    CHECK(GameCursor::sizeAt(50.0f) == 120);
+    CHECK(GameCursor::sizeAt(std::numeric_limits<f32>::quiet_NaN()) == GameCursor::kSize);
+    CHECK(GameCursor::sizeAt(std::numeric_limits<f32>::infinity()) == GameCursor::kSize);
+
+    Image marker = Image::filled(32, 24, Color::rgba(255, 0, 0, 0));
+    for (u32 x = 4; x <= 20; ++x) {
+        const u32 spread = (20 - x) / 3;
+        for (u32 y = 12 - spread; y <= 12 + spread; ++y) {
+            marker.setPixel(x, y, Color::rgba(0, 200, 80, 255));
+        }
+    }
+    const auto own = GameCursor::fromMarker(marker);
+    REQUIRE(own);
+    // Asked for its own size, it is the picture it always was.
+    const auto same = GameCursor::fromMarker(marker, GameCursor::kSize);
+    REQUIRE(same);
+    CHECK(same->image.pixels == own->image.pixels);
+    usize ownVisible = 0;
+    for (u32 i = 3; i < own->image.pixels.size(); i += 4) {
+        ownVisible += own->image.pixels[i] != 0 ? 1U : 0U;
+    }
+
+    for (const u32 size : {20U, 30U, 50U, 80U, 120U}) {
+        CAPTURE(size);
+        const auto cursor = GameCursor::fromMarker(marker, size);
+        REQUIRE(cursor);
+        CHECK(cursor->image.width == size);
+        CHECK(cursor->image.height == size);
+        CHECK(cursor->image.pixels.size() == usize{size} * size * 4);
+        // The tip stays in the upper left, on the art, in step with the size.
+        CHECK(cursor->hotX < size / 2);
+        CHECK(cursor->hotY < size / 2);
+        CHECK(cursor->image.pixel(cursor->hotX, cursor->hotY).a > 0);
+        const f32 grown = static_cast<f32>(size) / static_cast<f32>(GameCursor::kSize);
+        CHECK(std::abs(static_cast<f32>(cursor->hotX) - static_cast<f32>(own->hotX) * grown) <=
+              grown + 2.0f);
+        CHECK(std::abs(static_cast<f32>(cursor->hotY) - static_cast<f32>(own->hotY) * grown) <=
+              grown + 2.0f);
+        usize visible = 0;
+        for (u32 y = 0; y < size; ++y) {
+            for (u32 x = 0; x < size; ++x) {
+                const Color color = cursor->image.pixel(x, y);
+                if (color.a != 0) {
+                    ++visible;
+                    // Larger or smaller, no hidden colour bleeds into the art's.
+                    CHECK(color.r == 0);
+                    CHECK(color.g == 200);
+                    CHECK(color.b == 80);
+                }
+            }
+        }
+        // The art covers about as much of the picture at any size.
+        const f32 expected = static_cast<f32>(ownVisible) * grown * grown;
+        CHECK(static_cast<f32>(visible) > expected * 0.7f);
+        CHECK(static_cast<f32>(visible) < expected * 1.4f);
+        CHECK(cursor->image.pixel(0, 0).a == 0);
+        CHECK(cursor->image.pixel(size - 1, size - 1).a == 0);
+    }
+
+    // A side no pointer could have is refused.
+    CHECK_FALSE(GameCursor::fromMarker(marker, 0));
+    CHECK_FALSE(GameCursor::fromMarker(marker, GameCursor::kSmallest - 1));
+    CHECK_FALSE(GameCursor::fromMarker(marker, GameCursor::kLargest + 1));
 }
 
 TEST_CASE("the desktop pointer decodes MARKER_LEFT directly from the native STATIC archive",

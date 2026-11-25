@@ -119,17 +119,22 @@ void Gauntlet::applyWindowIcon() {
     }
 }
 
+/** The game's own pointer at `scale` times its size; the system's stays without its art. */
+void Gauntlet::applyCursor(f32 scale) {
+    if (const auto cursor = GameCursor::load(m_options.unpackedDirectory, scale)) {
+        if (!window().setCursor(cursor->image, cursor->hotX, cursor->hotY)) {
+            log::warn("Custom mouse cursor unavailable; retaining the system pointer");
+        }
+    }
+}
+
 void Gauntlet::onInit() {
     renderDevice().setSmoothSprites(m_config.display.smoothSprites);
     renderDevice().setAuthoredSilhouettes(m_config.display.authoredSilhouettes);
     // A saved exclusive resolution may no longer exist after moving displays.
     m_config.display.windowMode = window().windowMode();
     applyWindowIcon();
-    if (const auto cursor = GameCursor::load(m_options.unpackedDirectory)) {
-        if (!window().setCursor(cursor->image, cursor->hotX, cursor->hotY)) {
-            log::warn("Custom mouse cursor unavailable; retaining the system pointer");
-        }
-    }
+    applyCursor(m_config.display.cursorScale);
     m_buildLabel.load(renderDevice());
     setUpConsole();
     m_autoSaveIcon.load(renderDevice(), m_options.unpackedDirectory);
@@ -969,6 +974,9 @@ bool Gauntlet::applySettings(const GameConfig& config, bool persist) {
             throw;
         }
         window().stopRumble();
+        if (config.display.cursorScale != m_config.display.cursorScale) {
+            applyCursor(config.display.cursorScale);
+        }
         m_config = config;
         m_sounds->setMasterVolume(config.audio.masterVolume);
         m_sounds->setCategoryVolume(SoundCategory::Music, config.audio.musicVolume);

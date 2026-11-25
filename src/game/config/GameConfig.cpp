@@ -361,6 +361,7 @@ template <class Io, class Config> void visitSettings(Io& io, Config& config) {
         display.offered("textureFiltering", config.display.textureFiltering, kTextureFilterings);
         display.offered("sampleCount", config.display.sampleCount, kSampleCounts);
         display.frameRate("maxFrameRate", config.display.maxFrameRate);
+        display.value("cursorScale", config.display.cursorScale);
     });
     io.section("timing", [&](Io& timing) {
         timing.value("tickRate", config.timing.tickRate);
@@ -467,6 +468,11 @@ void GameConfig::mergeJson(std::string_view json) {
         play.magicDoubleTapSeconds <= 0.0f || play.magicDoubleTapSeconds > 2.0f) {
         throw FormatError("magic gesture windows must be in (0, 2] seconds");
     }
+    // A pointer size out of range, or no number at all, is brought back inside it.
+    display.cursorScale = std::isfinite(display.cursorScale)
+                              ? std::clamp(display.cursorScale, DisplayConfig::kCursorScaleMin,
+                                           DisplayConfig::kCursorScaleMax)
+                              : 1.0f;
     if (save.slots == 0 || timing.tickRate == 0 || display.virtualWidth == 0 ||
         display.virtualHeight == 0 || display.frameWidth == 0 || display.frameHeight == 0 ||
         display.windowWidth == 0 || display.windowHeight == 0) {
