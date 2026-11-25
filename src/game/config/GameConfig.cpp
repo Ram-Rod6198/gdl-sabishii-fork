@@ -385,6 +385,7 @@ template <class Io, class Config> void visitSettings(Io& io, Config& config) {
     io.section("game", [&](Io& game) {
         game.value("expandedShop", config.game.expandedShop);
         game.value("autoSave", config.game.autoSave);
+        game.value("deleteCharacters", config.game.deleteCharacters);
         game.switches("mechanics", config.game.mechanics,
                       "game.mechanics must name each mechanic true or false");
         game.value("difficulty", config.difficulty.level);

@@ -51,8 +51,9 @@ struct LaneServices {
     const TextPainter* initialsPainter = nullptr;
     const TextPainter* largePainter = nullptr; ///< font32
     const Texture* glowSheet = nullptr;
-    MenuTextures menuTextures; ///< sheets the lane menus draw with
-    s32 keyboardLane = -1;     ///< the lane whose player can also type a name
+    MenuTextures menuTextures;     ///< sheets the lane menus draw with
+    s32 keyboardLane = -1;         ///< the lane whose player can also type a name
+    bool deleteCharacters = false; ///< the first menu offers Delete (game.deleteCharacters)
 };
 
 /**
@@ -81,6 +82,9 @@ public:
         SavePick,
         OverwriteConfirm,
         Saving,
+        DeletePick,
+        DeleteConfirm,
+        Deleting,
         LockedIn
     };
 
@@ -179,6 +183,9 @@ private:
     s32 wrapClass(s32 classIndex, s32 step) const;
     bool classKnown(s32 classIndex) const;
     s32 pickLevel() const;
+    bool anyOccupied() const; ///< a slot holds a file, readable or not
+    /** What the slot being deleted is called: its character's name, or that it is unreadable. */
+    std::string targetName() const;
     void stepAnimations(s32 ticks);
     Blit& blit(Sheet sheet) { return m_blits[static_cast<usize>(sheet)]; }
     const Blit& blit(Sheet sheet) const { return m_blits[static_cast<usize>(sheet)]; }

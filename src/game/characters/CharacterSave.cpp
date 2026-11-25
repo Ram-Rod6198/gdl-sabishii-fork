@@ -508,4 +508,19 @@ bool SaveSlots::write(usize index, const CharacterSave& save) {
     return true;
 }
 
+bool SaveSlots::erase(usize index) {
+    if (index >= m_slots.size() || !m_slots[index].occupied) {
+        return false;
+    }
+    const std::filesystem::path file = path(index);
+    std::error_code error;
+    if (!std::filesystem::remove(file, error) || error) {
+        log::warn("Saves: cannot delete {}: {}", paths::utf8(file),
+                  error ? error.message() : "no such file");
+        return false;
+    }
+    m_slots[index] = SaveSlotInfo{};
+    return true;
+}
+
 } // namespace gdl::game

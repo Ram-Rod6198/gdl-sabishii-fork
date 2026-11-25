@@ -104,6 +104,9 @@ struct CombatConfig {
 struct GameOptionsConfig {
     bool expandedShop = false;
     bool autoSave = false;
+    /** The select screen's first menu offers Delete, which removes a saved character's file
+     * once the player has said yes. Off, a file can only be written over. */
+    bool deleteCharacters = false;
     /** The additive mechanics switched on or off, by `MechanicDescriptor::id`; one unsaid is
      * off. Kept whole, so a build without a mechanic still keeps a player's choice for it. */
     std::map<std::string, bool, std::less<>> mechanics;

@@ -363,6 +363,44 @@ TEST_CASE("save slots list, write and read the directory", "[game][players][save
     REQUIRE(again.slot(1).exists);
 }
 
+TEST_CASE("erasing a slot removes its file and keeps what the character unlocked",
+          "[game][players][save]") {
+    const auto dir = test::scratchDirectory("save-slots-erase");
+    SaveSlots slots;
+    REQUIRE(slots.open(dir, 3));
+    auto save = sampleSave();
+    save.classUnlock = 0x1;
+    REQUIRE(slots.write(0, sampleSave()));
+    REQUIRE(slots.write(1, save));
+    writeTextFile(dir / "slot3.json", "garbage");
+    slots.refresh();
+    const u16 unlocked = slots.classUnlocks();
+    REQUIRE((unlocked & 0x1) != 0);
+
+    REQUIRE(slots.erase(1));
+    CHECK_FALSE(slots.slot(1).occupied);
+    CHECK_FALSE(slots.slot(1).exists);
+    CHECK(slots.slot(1).name.empty());
+    CHECK_FALSE(std::filesystem::exists(slots.path(1)));
+    CHECK(slots.slot(0).exists);
+    CHECK(slots.classUnlocks() == unlocked);
+    CHECK_FALSE(slots.erase(1)); // nothing is left there
+    CHECK_FALSE(slots.erase(7));
+
+    // An unreadable file is cleared away as well.
+    REQUIRE(slots.slot(2).occupied);
+    REQUIRE_FALSE(slots.slot(2).exists);
+    CHECK(slots.erase(2));
+    CHECK_FALSE(slots.slot(2).occupied);
+
+    SaveSlots again;
+    REQUIRE(again.open(dir, 3));
+    CHECK(again.slot(0).exists);
+    CHECK_FALSE(again.slot(1).occupied);
+    CHECK_FALSE(again.slot(2).occupied);
+    CHECK(again.classUnlocks() == unlocked);
+}
+
 TEST_CASE("a character keeps the help it has been shown, in order", "[game][players][save]") {
     CharacterSave save = sampleSave();
     save.helpSeen = {21, 2, 133};

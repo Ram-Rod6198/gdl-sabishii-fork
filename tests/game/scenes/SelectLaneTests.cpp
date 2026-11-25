@@ -639,6 +639,134 @@ TEST_CASE("characters save to a slot and load back into the class picker", "[gam
     REQUIRE(other.slotInUse() == 1U);
 }
 
+TEST_CASE("the first menu offers Delete only when the option is on", "[game][select][delete]") {
+    Fixture f("select-lane-delete-off");
+    CharacterSave save;
+    save.name = "PELE";
+    REQUIRE(f.slots.write(0, save));
+    f.lane.activate();
+    REQUIRE(f.lane.menu().definition().items.size() == 2);
+    f.step(MenuInput{.back = true});
+
+    f.services.deleteCharacters = true;
+    f.lane.activate();
+    const auto& items = f.lane.menu().definition().items;
+    REQUIRE(items.size() == 3);
+    CHECK(items[2].text == "select.delete");
+    CHECK(items[2].enabled);
+    CHECK(f.lane.menu().selection() == 1); // Load stays the row first offered
+
+    // With no file there is nothing to delete.
+    REQUIRE(f.slots.erase(0));
+    f.step(MenuInput{.back = true});
+    f.lane.activate();
+    REQUIRE(f.lane.menu().definition().items.size() == 3);
+    CHECK_FALSE(f.lane.menu().definition().items[2].enabled);
+}
+
+TEST_CASE("a saved character is deleted only after Yes, and No is offered first",
+          "[game][select][delete]") {
+    Fixture f("select-lane-delete");
+    f.services.deleteCharacters = true;
+    CharacterSave first;
+    first.name = "PELE";
+    CharacterSave second;
+    second.name = "ZOE";
+    REQUIRE(f.slots.write(0, first));
+    REQUIRE(f.slots.write(2, second));
+    f.lane.activate();
+    f.step(MenuInput{.down = true}); // Load -> Delete
+    f.step(MenuInput{.select = true});
+    REQUIRE(f.lane.state() == SelectLane::State::DeletePick);
+    const auto& rows = f.lane.menu().definition().items;
+    REQUIRE(rows.size() == 3);
+    CHECK(rows[0].enabled);
+    CHECK_FALSE(rows[1].enabled); // an empty slot has nothing to delete
+    CHECK(rows[2].enabled);
+
+    // A file another player holds is refused with the buzzer.
+    SelectLane::Frame held;
+    held.slotsInUse = {0};
+    f.sounds.clear();
+    f.step(MenuInput{.select = true}, 1, held);
+    CHECK(f.lane.state() == SelectLane::State::DeletePick);
+    CHECK(f.sounds == std::vector<SelectSound>{SelectSound::Buzzer});
+
+    f.step(MenuInput{.select = true});
+    REQUIRE(f.lane.state() == SelectLane::State::DeleteConfirm);
+    CHECK(f.lane.reservedSlot() == 0U);
+    CHECK(f.lane.menu().selection() == 1); // No
+    f.step(MenuInput{.select = true});
+    REQUIRE(f.lane.state() == SelectLane::State::DeletePick);
+    CHECK(f.slots.slot(0).exists);
+    CHECK_FALSE(f.lane.reservedSlot().has_value());
+
+    // Backing out of the question keeps the file too.
+    f.step(MenuInput{.select = true});
+    REQUIRE(f.lane.state() == SelectLane::State::DeleteConfirm);
+    f.step(MenuInput{.back = true});
+    REQUIRE(f.lane.state() == SelectLane::State::DeletePick);
+    CHECK(f.slots.slot(0).exists);
+
+    f.step(MenuInput{.select = true});
+    f.step(MenuInput{.up = true}); // Yes
+    f.step(MenuInput{.select = true});
+    REQUIRE(f.lane.state() == SelectLane::State::Deleting);
+    CHECK(f.slots.slot(0).exists); // not before the operation has run
+    f.step(MenuInput{}, SelectLane::kOperationStepTicks * 3);
+    CHECK_FALSE(f.slots.slot(0).occupied);
+    CHECK_FALSE(std::filesystem::exists(f.slots.path(0)));
+    CHECK(f.slots.slot(2).exists);
+    REQUIRE(f.lane.state() == SelectLane::State::Deleting);
+    f.step(MenuInput{}, SelectLane::kNoticeTicks);
+    REQUIRE(f.lane.state() == SelectLane::State::DeletePick); // another file is left
+
+    // The last file gone, the lane is back at its first menu with nothing to load.
+    f.step(MenuInput{.select = true});
+    REQUIRE(f.lane.state() == SelectLane::State::DeleteConfirm);
+    CHECK(f.lane.reservedSlot() == 2U);
+    f.step(MenuInput{.up = true});
+    f.step(MenuInput{.select = true});
+    f.step(MenuInput{}, SelectLane::kOperationStepTicks * 3);
+    f.step(MenuInput{}, SelectLane::kNoticeTicks);
+    REQUIRE(f.lane.state() == SelectLane::State::TopMenu);
+    CHECK_FALSE(f.slots.anySaved());
+    CHECK_FALSE(f.lane.menu().definition().items[1].enabled);
+    CHECK_FALSE(f.lane.menu().definition().items[2].enabled);
+    CHECK_FALSE(f.lane.hasCharacter());
+}
+
+TEST_CASE("a file taken by another player while the question stands is not deleted",
+          "[game][select][delete]") {
+    Fixture f("select-lane-delete-race");
+    f.services.deleteCharacters = true;
+    CharacterSave save;
+    save.name = "PELE";
+    REQUIRE(f.slots.write(0, save));
+    writeTextFile(f.slots.path(1), "garbage");
+    f.slots.refresh();
+    f.lane.activate();
+    f.step(MenuInput{.down = true});
+    f.step(MenuInput{.select = true});
+    REQUIRE(f.lane.state() == SelectLane::State::DeletePick);
+    CHECK(f.lane.menu().definition().items[1].enabled); // an unreadable file can be cleared
+    f.step(MenuInput{.select = true});
+    f.step(MenuInput{.up = true});
+    f.step(MenuInput{.select = true});
+    REQUIRE(f.lane.state() == SelectLane::State::Deleting);
+    SelectLane::Frame held;
+    held.slotsInUse = {0};
+    f.step(MenuInput{}, SelectLane::kOperationStepTicks * 3, held);
+    CHECK(f.slots.slot(0).exists);
+    test::FakeRenderDevice device;
+    Canvas canvas;
+    canvas.begin(device, Mat4{1});
+    f.lane.drawText(canvas, 0); // the failure notice draws
+    canvas.end();
+    f.step(MenuInput{}, SelectLane::kNoticeTicks, held);
+    CHECK(f.lane.state() == SelectLane::State::DeletePick);
+}
+
 TEST_CASE("quitting an unsaved character asks first", "[game][select]") {
     Fixture f("select-lane-quit");
     f.lane.activate();

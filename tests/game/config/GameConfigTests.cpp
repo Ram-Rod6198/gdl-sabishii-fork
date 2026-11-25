@@ -78,6 +78,10 @@ TEST_CASE("expanded shop and autosave are independent opt-in settings", "[game][
     REQUIRE(config.loadFile(test::dataDirectory() / "config.json"));
     CHECK_FALSE(config.game.expandedShop);
     CHECK_FALSE(config.game.autoSave);
+    CHECK_FALSE(config.game.deleteCharacters);
+    config.mergeJson(R"({"game":{"deleteCharacters":true}})");
+    CHECK(config.game.deleteCharacters);
+    CHECK_FALSE(config.game.autoSave);
     config.mergeJson(R"({"game":{"expandedShop":true}})");
     CHECK(config.game.expandedShop);
     CHECK_FALSE(config.game.autoSave);
@@ -824,6 +828,7 @@ constexpr std::string_view kDefaultSettingsFile = R"json({
       "autoMelee": false,
       "enemyHealthBars": true
     },
+    "deleteCharacters": false,
     "difficulty": "normal",
     "expandedShop": false,
     "mechanics": {},
@@ -1295,6 +1300,7 @@ constexpr std::string_view kChangedSettingsFile = R"json({
       "autoMelee": true,
       "enemyHealthBars": false
     },
+    "deleteCharacters": true,
     "difficulty": "bogus",
     "expandedShop": true,
     "mechanics": {
@@ -1364,6 +1370,7 @@ GameConfig awayFromDefaults() {
     config.combat.autoAim = false;
     config.game.expandedShop = true;
     config.game.autoSave = true;
+    config.game.deleteCharacters = true;
     config.game.mechanics = {{"calm", false}, {"rage", true}};
 
     auto& menu = config.menu;

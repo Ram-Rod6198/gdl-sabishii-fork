@@ -88,6 +88,11 @@ public:
     /** Writes a slot; false (with a warning) when the file cannot be written. */
     bool write(usize index, const CharacterSave& save);
 
+    /** Removes a slot's file, readable or not, leaving the slot empty; false (with a warning)
+     * when there is none or it cannot be removed. What the character had unlocked stays
+     * unlocked: the shared profile is not touched. */
+    bool erase(usize index);
+
     /** Installation-wide class availability, independent of the character being selected.
      * Opening/refreshing imports old saves without rewriting them. */
     u16 classUnlocks() const { return m_classUnlocks; }

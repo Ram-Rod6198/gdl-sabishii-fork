@@ -71,6 +71,7 @@ constexpr s32 kMenuQuit = 1004;
 constexpr s32 kMenuDone = 1005;
 constexpr s32 kMenuYes = 1006;
 constexpr s32 kMenuNo = 1007;
+constexpr s32 kMenuDelete = 1008;
 constexpr s32 kMenuSlotBase = 2000;
 constexpr std::string_view kShadowSuffix = "SHADW";
 constexpr std::string_view kSumnerPortrait = "S12_SUM";
@@ -156,10 +157,14 @@ void SelectLane::manage() {
 }
 
 std::optional<usize> SelectLane::reservedSlot() const {
-    return m_state == State::OverwriteConfirm || m_state == State::Saving ||
-                   m_state == State::Loading
-               ? m_slotTarget
-               : std::nullopt;
+    switch (m_state) {
+    case State::OverwriteConfirm:
+    case State::Saving:
+    case State::Loading:
+    case State::DeleteConfirm:
+    case State::Deleting: return m_slotTarget;
+    default: return std::nullopt;
+    }
 }
 
 std::string SelectLane::text(std::string_view id) const {
@@ -190,6 +195,28 @@ s32 SelectLane::wrapClass(s32 classIndex, s32 step) const {
     }
 }
 
+bool SelectLane::anyOccupied() const {
+    if (m_services == nullptr || m_services->slots == nullptr) {
+        return false;
+    }
+    const SaveSlots& slots = *m_services->slots;
+    for (usize i = 0; i < slots.count(); ++i) {
+        if (slots.slot(i).occupied) {
+            return true;
+        }
+    }
+    return false;
+}
+
+std::string SelectLane::targetName() const {
+    if (m_services == nullptr || m_services->slots == nullptr || !m_slotTarget.has_value() ||
+        *m_slotTarget >= m_services->slots->count()) {
+        return {};
+    }
+    const SaveSlotInfo& info = m_services->slots->slot(*m_slotTarget);
+    return info.exists ? info.name : text("files.unreadable");
+}
+
 s32 SelectLane::pickLevel() const {
     if (m_pickClass == kSumnerClass) {
         return kMaxLevel;
@@ -207,9 +234,11 @@ void SelectLane::enter(State state) {
     case State::SaveMenu: openMenu(state); break;
     case State::QuitConfirm:
     case State::LoadConfirm:
-    case State::OverwriteConfirm: openConfirm(); break;
+    case State::OverwriteConfirm:
+    case State::DeleteConfirm: openConfirm(); break;
     case State::LoadPick:
-    case State::SavePick: openListMenu(state); break;
+    case State::SavePick:
+    case State::DeletePick: openListMenu(state); break;
     case State::NameEntry: m_nameEntry.begin(m_save.name); break;
     case State::ClassPick: showClassPick(); break;
     case State::LockedIn: m_returnState = State::SaveMenu; break;
@@ -235,6 +264,11 @@ void SelectLane::openMenu(State state) {
                             {std::string(text("select.load")), kMenuLoad}};
         definition.items[1].enabled = anySaved;
         selection = anySaved ? 1 : 0;
+        if (m_services != nullptr && m_services->deleteCharacters) {
+            // An unreadable file can be cleared away too, so any file at all offers the row.
+            definition.items.push_back({std::string(text("select.delete")), kMenuDelete});
+            definition.items.back().enabled = anyOccupied();
+        }
     } else {
         definition.items = {{std::string(text("select.save")), kMenuSave},
                             {std::string(text("select.change")), kMenuChange},
@@ -278,7 +312,8 @@ void SelectLane::openListMenu(State state) {
                     ? info.name
                     : std::string(text(info.occupied ? "files.unreadable" : "select.empty"));
             item.code = kMenuSlotBase + static_cast<s32>(i);
-            item.enabled = state == State::SavePick || info.exists;
+            item.enabled = state == State::SavePick ||
+                           (state == State::DeletePick ? info.occupied : info.exists);
             definition.items.push_back(item);
             if (m_slotTarget.has_value() && *m_slotTarget == i) {
                 selection = static_cast<s32>(i);
@@ -401,6 +436,11 @@ SelectLane::Result SelectLane::update(const MenuInput& rawInput, s32 ticks, cons
             const bool anySaved = m_services != nullptr && m_services->slots != nullptr &&
                                   m_services->slots->anySaved();
             enter(anySaved ? State::LoadPick : State::NoFiles);
+        } else if (event.action == MenuAction::Choice && event.code == kMenuDelete) {
+            play(SelectSound::Select);
+            m_returnState = State::TopMenu;
+            m_slotTarget.reset();
+            enter(State::DeletePick);
         } else if (event.action == MenuAction::Moved) {
             play(SelectSound::CursorVertical);
         }
@@ -554,6 +594,64 @@ SelectLane::Result SelectLane::update(const MenuInput& rawInput, s32 ticks, cons
             }
         } else if (event.action == MenuAction::Moved) {
             play(SelectSound::CursorVertical);
+        }
+        break;
+
+    case State::DeletePick:
+        if (event.action == MenuAction::Back) {
+            returnBack();
+        } else if (event.action == MenuAction::Choice && event.code >= kMenuSlotBase) {
+            const auto slot = static_cast<usize>(event.code - kMenuSlotBase);
+            // A file another player holds, or is reading or writing, stays.
+            if (std::ranges::contains(frame.slotsInUse, slot)) {
+                play(SelectSound::Buzzer);
+                break;
+            }
+            play(SelectSound::Select);
+            m_slotTarget = slot;
+            m_operationFailed = false;
+            enter(State::DeleteConfirm);
+        } else if (event.action == MenuAction::Moved) {
+            play(SelectSound::CursorVertical);
+        }
+        break;
+
+    case State::DeleteConfirm:
+        if (event.action == MenuAction::Choice && event.code == kMenuYes) {
+            enter(State::Deleting);
+        } else if (event.action == MenuAction::Back ||
+                   (event.action == MenuAction::Choice && event.code == kMenuNo)) {
+            enter(State::DeletePick);
+        } else if (event.action == MenuAction::Moved) {
+            play(SelectSound::CursorVertical);
+        }
+        break;
+
+    case State::Deleting:
+        // Paced as a save or load is, so the progress and the result can be read.
+        if (m_step < kOperationSteps) {
+            m_timer += ticks;
+            while (m_step < kOperationSteps && m_timer >= kOperationStepTicks) {
+                m_timer -= kOperationStepTicks;
+                ++m_step;
+            }
+            if (m_step == kOperationSteps) {
+                m_timer = 0;
+                m_operationFailed = m_services == nullptr || m_services->slots == nullptr ||
+                                    !m_slotTarget.has_value() ||
+                                    std::ranges::contains(frame.slotsInUse, *m_slotTarget) ||
+                                    !m_services->slots->erase(*m_slotTarget);
+            }
+            break;
+        }
+        m_timer += ticks;
+        if (m_timer >= kNoticeTicks) {
+            // Back to the list while a file is left to delete, else to the first menu.
+            if (anyOccupied()) {
+                enter(State::DeletePick);
+            } else {
+                returnBack();
+            }
         }
         break;
 
@@ -806,7 +904,8 @@ MenuInput SelectLane::pointerInput(const MenuInput& rawInput) {
             break;
         }
     }
-    if ((m_state == State::ClassPick || m_state == State::LoadPick || m_state == State::SavePick) &&
+    if ((m_state == State::ClassPick || m_state == State::LoadPick || m_state == State::SavePick ||
+         m_state == State::DeletePick) &&
         input.pointerScroll != 0 && !input.up && !input.down && !input.left && !input.right) {
         // The scene confines the pointer to this player's column. Use the same vertical
         // action as the configured keyboard/pad binding, without fighting a simultaneous key.
@@ -959,6 +1058,25 @@ void SelectLane::drawState(Canvas& canvas, s32 time) const {
         drawLines(canvas, small, kMessageY, kLineHeight, kSmallScale, text("select.overwrite"),
                   Color::white());
         break;
+    case State::DeletePick:
+        drawLines(canvas, small, kListMenuY - kLineHeight * 2 - 8, kLineHeight, kSmallScale,
+                  text("select.chooseDelete"), Color::white());
+        break;
+    case State::DeleteConfirm: {
+        const std::string name = targetName();
+        drawLines(canvas, small, kMessageY, kLineHeight, kSmallScale,
+                  std::vformat(text("select.deleteConfirm"), std::make_format_args(name)),
+                  Color::white());
+        break;
+    }
+    case State::Deleting: {
+        std::string_view id = "select.deleting";
+        if (m_step >= kOperationSteps) {
+            id = m_operationFailed ? "select.deleteFailed" : "select.deleteComplete";
+        }
+        drawLines(canvas, small, kMessageY, kLineHeight, kSmallScale, text(id), Color::white());
+        break;
+    }
     case State::Loading:
     case State::Saving: {
         const bool saving = m_state == State::Saving;
