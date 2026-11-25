@@ -31,7 +31,8 @@
     "musicVolume": 0.5019608,
     "effectsVolume": 0.5019608,
     "movieVolume": 1.0,
-    "stereo": true
+    "stereo": true,
+    "dreamRealmMusicFade": false
   },
   "text": {
     "language": "en"

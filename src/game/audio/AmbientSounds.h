@@ -2,6 +2,7 @@
 
 #include <optional>
 #include <span>
+#include <string_view>
 #include <vector>
 
 #include "engine/assets/SoundSet.h"
@@ -21,6 +22,9 @@ struct AmbientEmitter {
     Vec3 position{0.0f, 0.0f, 0.0f};
     f32 radius = 0.0f;
     u16 flags = 0; ///< sound-item flags, distinct from music-zone switching modes
+    /** A loop that is music of its own, the Dream Realm's at its portal in the Tower: with
+     * the player's option on, the level's music gives way to it altogether. */
+    bool musical = false;
     SoundSet* bank = nullptr;
     u32 sound = 0;
     SoundHandle handle = kNoSound;
@@ -53,6 +57,11 @@ public:
     static constexpr f32 kSilentAt = 1.5f;        ///< radii out where a loop has faded away
     static constexpr u16 kDuckMusic = 1;
     static constexpr f32 kMusicDuckHold = 0.5f; ///< AudioSecretProc renews this while in range
+    /** The Tower's loop at the Dream Realm's portal (TOWAMB), the one sound item that is music. */
+    static constexpr std::string_view kDreamRealmLoop = "S_DREAMSL";
+    /** The least the music is held to: a fifth for the original's flagged items
+     * (AudioClampMusicVol), nothing while it gives way to a musical loop. */
+    static constexpr f32 kLeastMusicScale = 0.2f;
 
     /** Radii up to two are global; otherwise full within, silent past kSilentAt radii. */
     static f32 loudness(f32 distance, f32 radius);
@@ -64,6 +73,12 @@ public:
               const WorldScene* world = nullptr);
     /** Joined slots, including fallen players; distinct from the standing listeners. */
     void setPlayerCount(s32 count) { m_players = count; }
+    /** The player's option, not the original's behaviour: on, the music fades out as a
+     * musical loop fades in, silent where the loop is at its full. Off by default. */
+    void yieldMusic(bool yield) { m_yieldMusic = yield; }
+    bool yieldsMusic() const { return m_yieldMusic; }
+    /** The floor a music scale asked for here is held to. */
+    f32 leastMusicScale() const { return m_yieldMusic ? 0.0f : kLeastMusicScale; }
     /** Starts, adjusts and stops the loops for the listeners, at the level's sound volume. */
     void update(SoundPlayer& player, std::span<const Vec3> listeners, const AmbientEar& ear,
                 f32 levelVolume, std::optional<f32> volumeOverride = std::nullopt,
@@ -83,8 +98,13 @@ public:
     std::optional<f32> musicScale() const;
 
 private:
+    /** One emitter's say over the music: `scale` the original's request so far, `yielded`
+     * what the player's option holds it under. */
+    void weigh(const AmbientEmitter& emitter, f32 loudness, std::optional<f32>& scale,
+               std::optional<f32>& yielded) const;
     std::vector<AmbientEmitter> m_emitters;
     s32 m_players = 1;
+    bool m_yieldMusic = false;
 };
 
 } // namespace gdl::game

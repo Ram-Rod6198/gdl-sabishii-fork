@@ -82,7 +82,7 @@ TEST_CASE("Game Options exposes optional shop stock and autosaving", "[settings]
     Fixture f;
     f.choose(1);
     REQUIRE(f.menu.page() == SettingsMenu::Page::Game);
-    REQUIRE(f.menu.menu().definition().items.size() == 6);
+    REQUIRE(f.menu.menu().definition().items.size() == 7);
     CHECK(f.menu.menu().definition().items.front().text == "Difficulty");
     CHECK(f.menu.menu().definition().items.back().text == "Language");
     CHECK(f.menu.menu().definition().items.back().value == "English");
@@ -109,17 +109,17 @@ TEST_CASE("Game Options switches each mechanic the build carries, after its own 
     f.choose(1);
     REQUIRE(f.menu.page() == SettingsMenu::Page::Game);
     const auto& items = f.menu.menu().definition().items;
-    REQUIRE(items.size() == 8);
-    CHECK(items[5].text == "calm"); // by id, each named by its own text
-    CHECK(items[6].text == "rage");
+    REQUIRE(items.size() == 9);
+    CHECK(items[6].text == "calm"); // by id, each named by its own text
+    CHECK(items[7].text == "rage");
     CHECK(items.back().text == "Language");
     CHECK_FALSE(MechanicCatalog::enabled(f.config.game, "rage"));
-    f.focus(items[6].code);
+    f.focus(items[7].code);
     f.right();
     CHECK(MechanicCatalog::enabled(f.config.game, "rage"));
     CHECK_FALSE(MechanicCatalog::enabled(f.config.game, "calm"));
     f.release();
-    f.focus(f.menu.menu().definition().items[6].code);
+    f.focus(f.menu.menu().definition().items[7].code);
     f.right();
     CHECK_FALSE(MechanicCatalog::enabled(f.config.game, "rage"));
     CHECK(f.settings.writes == 2);
@@ -2177,4 +2177,34 @@ TEST_CASE("a keyboard player's control scheme stands under its device, is turned
     f.menu.update(readPlayerMenuInput(physical, f.config, 2), 1);
     const auto& padItems = f.menu.menu().definition().items;
     CHECK(std::ranges::find(padItems, 106, &MenuItem::code) == padItems.end());
+}
+
+TEST_CASE("Game Options switches the Dream Realm music fade, off until the player turns it on",
+          "[settings][audio][dream-music-fade]") {
+    Fixture f;
+    CHECK_FALSE(f.config.audio.dreamRealmMusicFade);
+    f.choose(1);
+    REQUIRE(f.menu.page() == SettingsMenu::Page::Game);
+    constexpr s32 kDreamMusic = 6;
+    const auto row = [&]() -> const MenuItem& {
+        const auto& items = f.menu.menu().definition().items;
+        const auto item = std::ranges::find(items, kDreamMusic, &MenuItem::code);
+        REQUIRE(item != items.end());
+        return *item;
+    };
+    CHECK(row().text == "Dream Realm Music Fade");
+    f.focus(kDreamMusic);
+    f.right();
+    CHECK(f.config.audio.dreamRealmMusicFade);
+    CHECK(f.settings.writes == 1);
+    f.release();
+    // A refused save leaves the setting as it was.
+    f.settings.fail = true;
+    f.right();
+    CHECK(f.config.audio.dreamRealmMusicFade);
+    f.settings.fail = false;
+    f.release();
+    f.right();
+    CHECK_FALSE(f.config.audio.dreamRealmMusicFade);
+    CHECK(f.settings.writes == 2);
 }

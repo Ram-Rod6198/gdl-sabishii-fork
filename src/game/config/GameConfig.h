@@ -66,6 +66,9 @@ struct AudioConfig {
     f32 effectsVolume = 128.0f / 255.0f;
     f32 movieVolume = 1.0f;
     bool stereo = true;
+    /** Lets the Tower's music fall silent as the party comes up to the Dream Realm's portal,
+     * whose own music plays there; off, the two overlap as on the console. */
+    bool dreamRealmMusicFade = false;
 };
 
 struct TextConfig {

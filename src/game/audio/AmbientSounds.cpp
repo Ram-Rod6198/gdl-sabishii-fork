@@ -84,6 +84,7 @@ bool AmbientSounds::bind(const WorldLayout& layout, std::span<SoundSet* const> b
             if (const auto found = bank->find(instance.name); found.has_value()) {
                 emitter.bank = bank;
                 emitter.sound = *found;
+                emitter.musical = bank->entry(*found).name == kDreamRealmLoop;
                 break;
             }
         }
@@ -123,15 +124,32 @@ std::vector<AmbientSounds::Request> AmbientSounds::requests(std::span<const Vec3
     return result;
 }
 
+void AmbientSounds::weigh(const AmbientEmitter& emitter, f32 loudness, std::optional<f32>& scale,
+                          std::optional<f32>& yielded) const {
+    if (loudness <= 0.0f) {
+        return;
+    }
+    if ((emitter.flags & kDuckMusic) != 0) {
+        // AudioSecretProc, sounds.c 965: each audible flagged item overwrites the
+        // request, in authored order. The normal proximity range gives 0.5..1.
+        scale = 1.0f - 0.5f * loudness;
+    }
+    if (m_yieldMusic && emitter.musical) {
+        // Not the original's: the music falls as the loop rises, silent at the loop's full.
+        yielded = 1.0f - loudness;
+    }
+}
+
 std::optional<f32> AmbientSounds::musicScale(std::span<const Request> requests) const {
     std::optional<f32> scale;
+    std::optional<f32> yielded;
     for (const auto& request : requests) {
-        if (request.emitter < m_emitters.size() &&
-            (m_emitters[request.emitter].flags & kDuckMusic) != 0 && request.loudness > 0) {
-            scale = 1.0f - 0.5f * request.loudness;
+        if (request.emitter < m_emitters.size()) {
+            weigh(m_emitters[request.emitter], request.loudness, scale, yielded);
         }
     }
-    return scale;
+    // A flagged item authored after the musical loop does not lift the music over it.
+    return yielded ? std::min(scale.value_or(1.0f), *yielded) : scale;
 }
 
 void AmbientSounds::update(SoundPlayer& player, std::span<const Vec3> listeners,
@@ -189,14 +207,11 @@ usize AmbientSounds::playingCount() const {
 
 std::optional<f32> AmbientSounds::musicScale() const {
     std::optional<f32> scale;
+    std::optional<f32> yielded;
     for (const AmbientEmitter& emitter : m_emitters) {
-        if ((emitter.flags & kDuckMusic) != 0 && emitter.loudness > 0.0f) {
-            // AudioSecretProc, sounds.c 965: each audible flagged item overwrites the
-            // request, in authored order. The normal proximity range gives 0.5..1.
-            scale = 1.0f - 0.5f * emitter.loudness;
-        }
+        weigh(emitter, emitter.loudness, scale, yielded);
     }
-    return scale;
+    return yielded ? std::min(scale.value_or(1.0f), *yielded) : scale;
 }
 
 } // namespace gdl::game

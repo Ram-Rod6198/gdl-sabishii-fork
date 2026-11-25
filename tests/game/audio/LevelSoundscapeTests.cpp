@@ -2273,3 +2273,65 @@ TEST_CASE("soundscape recorder refuses closed epochs before silencing proximity 
     sounds.close();
 }
 } // namespace
+
+TEST_CASE("the Dream Realm's loop silences the music only with the player's fade turned on",
+          "[game][world][ambience][soundscape][dream-music-fade]") {
+    AreaFixture f("soundscape-dream-music-fade");
+    writeBank(f.root, "TOWAMB", {"S_DREAMSL", "S_FIRE"});
+    f.soundscape.open(f.root, &f.player, &f.info);
+    f.soundscape.startMusic(&f.assets, 1.0f);
+    // The portal's loop carries no music flag of its own; the fire beside it does.
+    writeTextFile(f.root / "world.json", R"({
+      "objects": [{"name":"FLOOR","position":[0,0,0],"next":-1,"child":-1}],
+      "locators": [],
+      "itemInfos": [{"type":13,"subtype":0,"name":""}],
+      "itemInstances": [
+        {"info":0,"name":"S_dreamsl","position":[0,0,0],
+         "params":[0,0,128,64,0,0,0,0,0,0,0,0]},
+        {"info":0,"name":"S_fire","position":[100,0,0],
+         "params":[0,0,128,64,0,0,0,0,1,0,0,0]}
+      ]
+    })");
+    WorldLayout layout;
+    REQUIRE(layout.load(f.root));
+    f.soundscape.bindAmbience(layout);
+    REQUIRE(f.soundscape.ambience().size() == 2);
+    REQUIRE(f.soundscape.ambience().emitter(0).musical);
+    REQUIRE_FALSE(f.soundscape.ambience().emitter(1).musical);
+    const AmbientEar ear;
+    const std::array<Vec3, 1> beside{Vec3{0.0f}};
+    const std::array<Vec3, 1> edge{Vec3{5.0f, 0.0f, 0.0f}}; // half heard: radius 4, silent at 6
+    const std::array<Vec3, 1> away{Vec3{50.0f, 0.0f, 0.0f}};
+    const std::array<Vec3, 1> fire{Vec3{100.0f, 0.0f, 0.0f}};
+    const auto stand = [&](const auto& party, s32 frames = 60) {
+        for (s32 frame = 0; frame < frames; ++frame) {
+            f.soundscape.updateAmbience(party, ear, 1.0f);
+            f.frames(1);
+        }
+    };
+    // Off, as shipped: the loop plays over the music at its full, as on the console.
+    stand(beside);
+    REQUIRE(f.soundscape.ambience().emitter(0).loudness == 1.0f);
+    CHECK(f.soundscape.musicLevel() == LevelSoundscape::kFullLevel);
+    CHECK_FALSE(f.soundscape.ambience().musicScale().has_value());
+
+    f.soundscape.yieldMusicToAmbience(true);
+    stand(beside);
+    CHECK(f.soundscape.ambience().musicScale() == 0.0f);
+    CHECK(f.soundscape.musicLevel() == 0);
+    CHECK(f.player.isPlaying(f.soundscape.music())); // silent, not stopped: it has its place
+    CHECK(f.player.isPlaying(f.soundscape.ambience().emitter(0).handle));
+    stand(edge);
+    CHECK(f.soundscape.musicLevel() == 127); // 255 * (1 - .5)
+    stand(away);
+    CHECK(f.soundscape.musicLevel() == LevelSoundscape::kFullLevel);
+    // The original's flagged items still halve it and no more.
+    stand(fire);
+    CHECK(f.soundscape.musicLevel() == LevelSoundscape::kFullLevel / 2);
+    // Turned off beside the portal, the music comes back over the loop.
+    stand(beside);
+    REQUIRE(f.soundscape.musicLevel() == 0);
+    f.soundscape.yieldMusicToAmbience(false);
+    stand(beside);
+    CHECK(f.soundscape.musicLevel() == LevelSoundscape::kFullLevel);
+}

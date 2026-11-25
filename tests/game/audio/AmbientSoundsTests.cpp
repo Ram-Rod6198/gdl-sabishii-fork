@@ -578,6 +578,48 @@ TEST_CASE("the tower's ambience stands at the realms' portals and its braziers",
     REQUIRE(fires == 43);
 }
 
+TEST_CASE("the tower's one musical loop is the Dream Realm's, which silences the music only "
+          "with the player's fade on",
+          "[game][world][ambience][dream-music-fade][assets]") {
+    const std::filesystem::path root =
+        test::assetOrSkip("audio/TOWAMB.vbk").parent_path().parent_path();
+    test::assetOrSkip("LEVELS/LEVELL1/WORLDS.PS2");
+    SoundSet ambient;
+    REQUIRE(ambient.load(root / "audio/TOWAMB"));
+    WorldLayout layout;
+    REQUIRE(layout.load(root / "LEVELS/LEVELL1"));
+    AmbientSounds ambience;
+    const std::array<SoundSet*, 1> banks{&ambient};
+    REQUIRE(ambience.bind(layout, banks));
+    usize dream = ambience.size();
+    usize musical = 0;
+    for (usize i = 0; i < ambience.size(); ++i) {
+        if (ambience.emitter(i).musical) {
+            ++musical;
+            dream = i;
+        }
+    }
+    REQUIRE(musical == 1);
+    const AmbientEmitter& portal = ambience.emitter(dream);
+    REQUIRE(ambient.entry(portal.sound).name == AmbientSounds::kDreamRealmLoop);
+    CAPTURE(portal.radius, portal.flags, portal.position.x, portal.position.y, portal.position.z);
+    REQUIRE(portal.radius > 2.0f); // heard by distance, not everywhere
+    // Unflagged on the disc: the console leaves the Tower's music at its full beside it.
+    CHECK((portal.flags & AmbientSounds::kDuckMusic) == 0);
+    const std::array<Vec3, 1> beside{portal.position};
+    const std::array<Vec3, 1> edge{portal.position + Vec3{portal.radius * 1.25f, 0.0f, 0.0f}};
+    const std::array<Vec3, 1> away{portal.position + Vec3{portal.radius * 1.6f, 0.0f, 0.0f}};
+    const auto scaleAt = [&](std::span<const Vec3> party) {
+        return ambience.musicScale(ambience.requests(party, 1.0f));
+    };
+    CHECK_FALSE(scaleAt(beside).has_value());
+    ambience.yieldMusic(true);
+    CHECK(scaleAt(beside) == 0.0f);
+    REQUIRE(scaleAt(edge).has_value());
+    CHECK(std::abs(*scaleAt(edge) - 0.5f) < 1.0e-4f);
+    CHECK_FALSE(scaleAt(away).has_value());
+}
+
 TEST_CASE("authored Temple organist and Battlefield hoop sound items are audible on approach",
           "[game][world][ambience][soundscape][assets]") {
     const std::filesystem::path root =

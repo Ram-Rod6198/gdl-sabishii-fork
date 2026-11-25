@@ -135,7 +135,11 @@ public:
     void duckMusic(f32 seconds, f32 scale);
     /** Presentation-only proximity duck. Camera-dependent ambience must not
      * mutate the rewind/digest state or replace a native event's music duck. */
-    void duckAmbientMusic(f32 seconds, f32 scale);
+    void duckAmbientMusic(f32 seconds, f32 scale, f32 least = AmbientSounds::kLeastMusicScale);
+    /** The player's Dream Realm Music Fade option: on, the music falls silent as the party
+     * comes up to a loop that is music itself (the Tower's at the Dream Realm's portal)
+     * instead of playing over it. Presentation only, like every proximity duck. */
+    void yieldMusicToAmbience(bool yield) { m_ambience.yieldMusic(yield); }
     static constexpr f32 kRuneMusicScale = 0.5f;
     static constexpr f32 kRuneMusicLead = 1.0f; ///< seconds before the sting ends that it lifts
     /** The original's per-frame music service (AudioMusicVolUpdate, thirty a second of game

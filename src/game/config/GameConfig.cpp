@@ -376,6 +376,7 @@ template <class Io, class Config> void visitSettings(Io& io, Config& config) {
         audio.value("effectsVolume", config.audio.effectsVolume);
         audio.value("movieVolume", config.audio.movieVolume);
         audio.value("stereo", config.audio.stereo);
+        audio.value("dreamRealmMusicFade", config.audio.dreamRealmMusicFade);
     });
     io.section("text", [&](Io& text) { text.value("language", config.text.language); });
     io.section("save", [&](Io& save) {

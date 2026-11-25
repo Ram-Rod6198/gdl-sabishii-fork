@@ -1202,6 +1202,8 @@ void PlayScene::gatherRecordedAudio(const Inputs& inputs, PlayOutcome outcome) {
     }
     const auto frame = CameraFrame::of(presentedCamera());
     const auto* level = m_world->level();
+    m_audio.yieldMusicToAmbience(m_services->config != nullptr &&
+                                 m_services->config->audio.dreamRealmMusicFade);
     m_audio.gatherLoops(
         listeners, {frame.position, frame.right}, level != nullptr ? level->soundVolume : 1.0f,
         m_sim.switchCutscene.active() || m_ceremonies.promotion().active() || relicCeremonyOn(),
@@ -1871,6 +1873,8 @@ void PlayScene::updateAmbience() {
     }
     const CameraFrame frame = CameraFrame::of(presentedCamera());
     const LevelInfo* level = m_world->level();
+    m_audio.yieldMusicToAmbience(m_services->config != nullptr &&
+                                 m_services->config->audio.dreamRealmMusicFade);
     m_audio.updateAmbience(listeners, AmbientEar{frame.position, frame.right},
                            level != nullptr ? level->soundVolume : 1.0f,
                            m_sim.switchCutscene.active() || m_ceremonies.promotion().active() ||

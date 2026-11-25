@@ -563,6 +563,7 @@ TEST_CASE("the online camera rule is kept with the settings, shared unless said 
 /** The settings file the defaults write. */
 constexpr std::string_view kDefaultSettingsFile = R"json({
   "audio": {
+    "dreamRealmMusicFade": false,
     "effectsVolume": 0.501960813999176,
     "masterVolume": 1.0,
     "movieVolume": 1.0,
@@ -847,6 +848,7 @@ constexpr std::string_view kDefaultSettingsFile = R"json({
 /** The settings file `awayFromDefaults` writes. */
 constexpr std::string_view kChangedSettingsFile = R"json({
   "audio": {
+    "dreamRealmMusicFade": true,
     "effectsVolume": 0.0,
     "masterVolume": 0.501960813999176,
     "movieVolume": 0.25,
@@ -1352,6 +1354,7 @@ GameConfig awayFromDefaults() {
     config.audio.effectsVolume = 0.0f;
     config.audio.movieVolume = 0.25f;
     config.audio.stereo = false;
+    config.audio.dreamRealmMusicFade = true;
     config.text.language = "fr";
     config.save.directory = R"(D:\Saves\sävé-日本)";
     config.save.slots = 3;

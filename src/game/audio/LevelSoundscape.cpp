@@ -227,7 +227,8 @@ void LevelSoundscape::gatherLoops(std::span<const Vec3> listeners, const Ambient
 void LevelSoundscape::servicePresentation(f32 seconds) {
     requirePresentation("servicing scene presentation during native capture");
     if (m_ambientDuck) {
-        duckAmbientMusic(AmbientSounds::kMusicDuckHold, *m_ambientDuck);
+        duckAmbientMusic(AmbientSounds::kMusicDuckHold, *m_ambientDuck,
+                         m_ambience.leastMusicScale());
     }
     serviceMusic(seconds);
     if (m_events != nullptr) {
@@ -299,7 +300,7 @@ void LevelSoundscape::updateAmbience(std::span<const Vec3> listeners, const Ambi
         m_ambience.update(*m_output, listeners, ear, volume,
                           ducked ? std::optional<f32>{kDuckedLevel} : std::nullopt, world);
         if (const auto scale = m_ambience.musicScale(); scale.has_value()) {
-            duckAmbientMusic(AmbientSounds::kMusicDuckHold, *scale);
+            duckAmbientMusic(AmbientSounds::kMusicDuckHold, *scale, m_ambience.leastMusicScale());
         }
     }
 }
@@ -480,13 +481,13 @@ void LevelSoundscape::duckMusic(f32 seconds, f32 scale) {
     m_sim.duckScale = scale < kLeastScale ? kLeastScale : std::min(scale, 1.0f);
 }
 
-void LevelSoundscape::duckAmbientMusic(f32 seconds, f32 scale) {
+void LevelSoundscape::duckAmbientMusic(f32 seconds, f32 scale, f32 least) {
     requirePresentation("ducking ambient music during native capture");
-    if (!std::isfinite(seconds) || !std::isfinite(scale)) {
+    if (!std::isfinite(seconds) || !std::isfinite(scale) || !std::isfinite(least)) {
         return;
     }
     m_musicPlayback.ambientDuck = std::max(seconds, 0.0f);
-    m_musicPlayback.ambientDuckScale = std::clamp(scale, 0.2f, 1.0f);
+    m_musicPlayback.ambientDuckScale = std::clamp(scale, std::clamp(least, 0.0f, 1.0f), 1.0f);
 }
 
 void LevelSoundscape::updateMusic(f32 seconds) {
