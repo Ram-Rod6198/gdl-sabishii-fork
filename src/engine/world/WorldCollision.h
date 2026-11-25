@@ -142,7 +142,10 @@ public:
     /** The floor an item was set on (FloorPos): of the faces under the point and the edges
      * within reach, the one nearest the point's height. A ledge's edge a hand's breadth away
      * does not lift an item off the floor under it, and a landing's edge keeps a switch
-     * authored at its height off a lift deck eight units down. */
+     * authored at its height off a lift deck eight units down. A face under the point is
+     * the floor before an edge beside it, as FloorPos scores them: an edge is taken only
+     * where the point touches it or it lies a unit nearer the point's height, so the next
+     * triangle up a slope does not lift an item off the one it stands on. */
     std::optional<FloorHit> restingFloorAt(const Vec3& position, f32 above, f32 below,
                                            f32 edgeReach) const;
     /** Support within a body's footprint in its direction of travel. Used when the

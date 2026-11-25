@@ -447,6 +447,54 @@ TEST_CASE("the floor under a point is found within the probe range", "[world][co
     REQUIRE(collision.floorAt(Vec3{5.0f, 1.0f, 0.0f}, 2.0f, 3.0f)->y == Approx(0.0f));
 }
 
+TEST_CASE("an item rests on the face under it, not on the next triangle up the slope",
+          "[world][collision][resting-floor]") {
+    // The two triangles of the Forest's first level (D1#53) about the flame trap its 147th
+    // item record sets at (78.75, 10.2734, 34.25): the one under the trap, and its uphill
+    // neighbour, whose edge passes 0.35 from the trap at a height nearer the authored one.
+    // FloorPos scores an edge at 10000 times its squared distance against a face's squared
+    // drop from the probe's top (CTriListCollide), so the original stands the trap on the
+    // face, at 10.19; taking the edge left it 0.07 in the air.
+    WorldCollision slope;
+    const std::array<Vec3, 3> under{Vec3{64.5703f, 12.5f, 43.7812f},
+                                    Vec3{82.0703f, 9.7765f, 32.5441f},
+                                    Vec3{69.5703f, 9.7765f, 32.5441f}};
+    const std::array<Vec3, 3> uphill{Vec3{78.3203f, 12.5f, 55.0312f},
+                                     Vec3{82.0674f, 9.7744f, 32.5376f},
+                                     Vec3{64.5705f, 12.5f, 43.7814f}};
+    slope.build({{{0.0f, 0.9719f, -0.2355f}, under, 0, 6},
+                 {{0.0864f, 0.9906f, -0.1056f}, uphill, 1, 6}});
+    const Vec3 trap{78.75f, 10.2734375f, 34.25f};
+    const auto rest = slope.restingFloorAt(trap, 4, 10, 1.0f);
+    REQUIRE(rest);
+    CHECK(rest->object == 0);
+    CHECK(rest->y == Approx(10.1905f).margin(0.002f));
+    CHECK(rest->point.x == Approx(trap.x));
+    CHECK(rest->point.z == Approx(trap.z));
+    // With no face under the item the edge within reach is still its floor.
+    WorldCollision alone;
+    alone.build({{{0.0864f, 0.9906f, -0.1056f}, uphill, 1, 6}});
+    const auto beside = alone.restingFloorAt(trap, 4, 10, 1.0f);
+    REQUIRE(beside);
+    CHECK(beside->object == 1);
+    CHECK(beside->y == Approx(10.262f).margin(0.002f));
+    // An edge the item touches is the face it borders: a step's lip 0.02 away holds an item
+    // authored at its height, one 0.2 away leaves it on the floor under it.
+    const std::array<Vec3, 3> floorA{Vec3{-5, 0, -5}, Vec3{5, 0, -5}, Vec3{5, 0, 5}};
+    const std::array<Vec3, 3> floorB{Vec3{-5, 0, -5}, Vec3{5, 0, 5}, Vec3{-5, 0, 5}};
+    for (const f32 gap : {0.02f, 0.2f}) {
+        CAPTURE(gap);
+        const std::array<Vec3, 3> step{Vec3{1 + gap, 0.3f, -2}, Vec3{3, 0.3f, -2},
+                                       Vec3{1 + gap, 0.3f, 0}};
+        WorldCollision stepped;
+        stepped.build(
+            {{{0, 1, 0}, floorA, 0, 4}, {{0, 1, 0}, floorB, 0, 4}, {{0, 1, 0}, step, 1, 4}});
+        const auto floor = stepped.restingFloorAt({1.0f, 0.3f, -1.5f}, 4, 10, 1.0f);
+        REQUIRE(floor);
+        CHECK(floor->object == (gap < 0.04f ? 1 : 0));
+    }
+}
+
 TEST_CASE("wall rays follow the finite three-dimensional segment and stored front side",
           "[world][collision][wall-ray][alpha-contact-seed]") {
     WorldCollision collision;

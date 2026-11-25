@@ -30,6 +30,15 @@ constexpr f32 kSweepEpsilon = 1.0e-6f;
 /** A centre this near a face's plane stands on it, not in front of it: a body pulled onto
  * a floor's edge where a one-sided railing stands is not held there by the railing. */
 constexpr f32 kOnPlane = 0.01f;
+/** FloorPos scores a face under the point by its squared drop from the probe's top and an
+ * edge beside the point by 10000 times its squared distance (CTriListCollide), so an edge
+ * further off than a hundredth of that drop, at least four, loses to the face. An edge this
+ * near is the face it borders. */
+constexpr f32 kRestingEdgeContact = 0.04f;
+/** Any other edge must lie this much nearer an item's height than a face under the item to
+ * be the floor it was set on: a landing a storey over a lift deck, not the next triangle of
+ * the slope the item stands on. */
+constexpr f32 kRestingEdgeHandicap = 1.0f;
 // FastWallCollide (8000D308) accepts these inclusive normal-Y bounds;
 // WorldObjCollide bypasses the normal filter for world-object flag 0x40.
 constexpr f32 kRayWallNormalY = 0.866f;
@@ -854,6 +863,7 @@ std::optional<FloorHit> WorldCollision::surfaceAt(const Vec3& position, f32 abov
                                                   bool nearestToHeight, u8 sideMask,
                                                   Prober prober) const {
     std::optional<FloorHit> best;
+    f32 bestOff = 0.0f; ///< how far `best` lies from the height, an edge's handicap included
     const f32 highest = position.y + above;
     const f32 lowest = position.y - below;
     eachTriangle(
@@ -866,6 +876,7 @@ std::optional<FloorHit> WorldCollision::surfaceAt(const Vec3& position, f32 abov
                 return;
             }
             Vec2 point{position.x, position.z};
+            f32 handicap = 0.0f;
             if (!insideXZ(triangle, point.x, point.y)) {
                 if (edgeReach <= 0.0f) {
                     return;
@@ -888,6 +899,9 @@ std::optional<FloorHit> WorldCollision::surfaceAt(const Vec3& position, f32 abov
                 if (!found) {
                     return;
                 }
+                if (nearest > kRestingEdgeContact * kRestingEdgeContact) {
+                    handicap = kRestingEdgeHandicap;
+                }
             }
             const Vec3& v = triangle.vertices[0];
             if (direction != nullptr &&
@@ -900,11 +914,11 @@ std::optional<FloorHit> WorldCollision::surfaceAt(const Vec3& position, f32 abov
             if (y > highest || y < lowest) {
                 return;
             }
+            const f32 off = std::abs(y - position.y) + handicap;
             const bool better =
-                !best.has_value() ||
-                (nearestToHeight ? std::abs(y - position.y) < std::abs(best->y - position.y)
-                                 : y > best->y);
+                !best.has_value() || (nearestToHeight ? off < bestOff : y > best->y);
             if (better) {
+                bestOff = off;
                 best = FloorHit{y,
                                 triangle.normal,
                                 triangle.object,

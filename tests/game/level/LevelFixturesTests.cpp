@@ -1456,6 +1456,38 @@ TEST_CASE("a tent wall stops the swarm's missiles only while it is raised",
     f.fixtures.clear();
 }
 
+TEST_CASE("the Forest's traps stand on the ground under them, not on a neighbouring slope",
+          "[game][screens][level-fixtures][traps][assets]") {
+    const auto root =
+        test::assetOrSkip("LEVELS/LEVELD1/WORLDS.PS2").parent_path().parent_path().parent_path();
+    LevelCatalog catalog;
+    REQUIRE(catalog.load(root));
+    Fixture f;
+    f.fixtures.clear();
+    REQUIRE(f.world.load(f.device, root, *catalog.byName("D1")));
+    f.fixtures.bind({f.device, f.world, f.weapons, f.effects, f.audio, 1});
+    f.fixtures.setPlayerCount(4);
+    const Traps& traps = f.fixtures.traps();
+    // AddItemSub stands an item a tenth over FloorPos's floor, the face under it. These three
+    // have a triangle's edge within a unit nearer their authored heights, which lifted them
+    // 0.07, 0.03 and 0.05 off the ground.
+    const std::array<std::pair<s32, f32>, 3> grounded{
+        {{147, 10.2905f}, {321, 11.4240f}, {322, 17.0180f}}};
+    for (const auto& [instance, height] : grounded) {
+        CAPTURE(instance);
+        bool found = false;
+        for (usize i = 0; i < traps.size(); ++i) {
+            if (traps.trap(i).instance == instance) {
+                found = true;
+                CHECK(traps.trap(i).figure.position().y ==
+                      Catch::Approx(height).margin(0.005f));
+            }
+        }
+        CHECK(found);
+    }
+    f.fixtures.clear();
+}
+
 TEST_CASE("Death leaves no pickup tether and his chest retires when its opening finishes",
           "[game][screens][level-fixtures][death-chest][assets]") {
     const auto root =
