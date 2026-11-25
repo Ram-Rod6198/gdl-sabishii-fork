@@ -496,6 +496,17 @@ f32 DifficultyConfig::gain() const {
     return named != kNames.end() ? kGains[static_cast<usize>(named - kNames.begin())] : 1.0f;
 }
 
+f32 CameraConfig::steppedFov(f32 degrees, s32 direction) {
+    if (!std::isfinite(degrees)) {
+        return kNarrowestFovDegrees;
+    }
+    // An angle between two choices goes to the nearer one the step points at.
+    const f32 steps = degrees / kFovStepDegrees;
+    const f32 next =
+        (direction < 0 ? std::ceil(steps) - 1.0f : std::floor(steps) + 1.0f) * kFovStepDegrees;
+    return std::clamp(next, kNarrowestFovDegrees, kWidestFovDegrees);
+}
+
 f32 GameConfig::horizontalFovRadians() const {
     return camera.horizontalFovDegrees * (std::numbers::pi_v<f32> / 180.0f);
 }

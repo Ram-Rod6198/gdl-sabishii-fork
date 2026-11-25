@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <optional>
 #include <span>
 #include <string>
@@ -22,6 +23,7 @@ constexpr s32 kLanguageCode = 5;
 constexpr s32 kFirstMechanicCode = 16; ///< the Game page's mechanics, one code each in order
 constexpr s32 kDisplayCode = 13;
 constexpr s32 kRendererCode = 14;
+constexpr s32 kFieldOfViewCode = 15;
 constexpr s32 kApplyCode = 5;    ///< the Video page's Apply, the first of its actions
 constexpr s32 kDefaultsCode = 6; ///< the Video page's Restore Defaults
 constexpr s32 kSaveCode = 100;   ///< the Video confirmation's Save
@@ -169,6 +171,19 @@ std::string sizeText(Extent2D size) {
     return std::to_string(size.width) + " x " + std::to_string(size.height);
 }
 
+/** An angle as the Field of View row shows it: whole degrees plainly, else to one decimal.
+ * One the file gives beyond any angle is shown at four figures. */
+std::string degreesText(f32 degrees) {
+    if (!std::isfinite(degrees)) {
+        return "-";
+    }
+    const auto tenths =
+        static_cast<s32>(std::lround(std::clamp(degrees, -9999.0f, 9999.0f) * 10.0f));
+    const s32 size = std::abs(tenths);
+    const std::string text = (tenths < 0 ? "-" : "") + std::to_string(size / 10);
+    return size % 10 == 0 ? text : text + "." + std::to_string(size % 10);
+}
+
 /**
  * One Video row, defined once: its code and label, what it shows, when it is offered, what a
  * step does to it and what Restore Defaults puts back. An On/Off row names its setting and
@@ -193,7 +208,7 @@ bool vulkanOnly(const GameConfig& config, const VideoView& /*view*/) {
     return config.display.renderer != GraphicsApi::OpenGl;
 }
 
-const std::array<VideoRow, 12> kVideoTable{{
+const std::array<VideoRow, 13> kVideoTable{{
     // The renderer is chosen from the title alone, the one drawing a level not being
     // swappable under it; the choice takes effect when the game is next started.
     {.code = kRendererCode,
@@ -379,6 +394,28 @@ const std::array<VideoRow, 12> kVideoTable{{
          },
      .labels = kTextureLabels},
     {.code = 12, .label = "settings.smoothSprites", .toggle = &DisplayConfig::smoothSprites},
+    // How wide the play view is drawn, in degrees; the ends hold rather than wrap. An angle
+    // the file gives between or beyond the choices is shown as it is until a step is taken.
+    {.code = kFieldOfViewCode,
+     .label = "settings.fieldOfView",
+     .shown =
+         [](const GameConfig& config, const VideoView& /*view*/) {
+             return Shown{{}, degreesText(config.camera.horizontalFovDegrees)};
+         },
+     .step =
+         [](GameConfig& config, const VideoView& /*view*/, s32 direction) {
+             const f32 next =
+                 CameraConfig::steppedFov(config.camera.horizontalFovDegrees, direction);
+             if (next == config.camera.horizontalFovDegrees) {
+                 return false;
+             }
+             config.camera.horizontalFovDegrees = next;
+             return true;
+         },
+     .restore =
+         [](GameConfig& config, const GameConfig& defaults, const VideoView& /*view*/) {
+             config.camera.horizontalFovDegrees = defaults.camera.horizontalFovDegrees;
+         }},
 }};
 constexpr s32 kVideoRows = static_cast<s32>(std::tuple_size_v<decltype(kVideoTable)>);
 
@@ -539,8 +576,13 @@ void SettingsMenu::rebuild(s32 selection) {
         constexpr s32 kLeft = 64;
         constexpr s32 kRight = 448;
         constexpr s32 kColumnGap = 28;
-        constexpr s32 kRowTop = 104; ///< under the title's cell; twelve rows to the actions
-        constexpr s32 kRowStep = 16;
+        constexpr s32 kRowTop = 104;     ///< under the title's cell
+        constexpr s32 kLastRowTop = 286; ///< the lowest a row may start and clear the actions
+        constexpr s32 kWidestRowStep = 16;
+        // Twelve rows stand sixteen apart, as they always have; more close up to stay above
+        // the actions, their lettering made small enough to keep each line clear of the next.
+        constexpr s32 kRowStep =
+            std::min(kWidestRowStep, (kLastRowTop - kRowTop) / (kVideoRows - 1));
         constexpr s32 kActionY = 316;
         constexpr s32 kActionGap = 24;
         if (m_confirmVideo) {
@@ -599,6 +641,11 @@ void SettingsMenu::rebuild(s32 selection) {
             definition.scale =
                 std::min(definition.scale, static_cast<f32>(kRight - kLeft - kActionGap) /
                                                static_cast<f32>(std::max(1, actionWidth)));
+            if (kRowStep < kWidestRowStep) {
+                const s32 fullHeight = std::max(1, m_painter->lineHeight(1.0f));
+                definition.scale = std::min(definition.scale, (static_cast<f32>(kRowStep) - 0.5f) /
+                                                                  static_cast<f32>(fullHeight));
+            }
             definition.valueX = kLeft +
                                 static_cast<s32>(static_cast<f32>(labelWidth) * definition.scale) +
                                 kColumnGap;

@@ -315,6 +315,7 @@
   "settings.antialiasing": "Anti-Aliasing",
   "settings.textureFiltering": "Texture Filtering",
   "settings.smoothSprites": "Smooth Sprites",
+  "settings.fieldOfView": "Field of View",
   "settings.trilinear": "Trilinear",
   "settings.anisotropic2": "2x Anisotropic",
   "settings.anisotropic4": "4x Anisotropic",

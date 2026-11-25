@@ -1896,3 +1896,23 @@ TEST_CASE("a profile refuses a binding name it does not know, where the shared b
 }
 
 } // namespace
+
+TEST_CASE("the field of view steps in fives between sixty and a hundred and ten",
+          "[game][config][camera][field-of-view]") {
+    CHECK(GameConfig{}.camera.horizontalFovDegrees == CameraConfig::kNarrowestFovDegrees);
+    CHECK(CameraConfig::steppedFov(60, 1) == 65);
+    CHECK(CameraConfig::steppedFov(65, -1) == 60);
+    CHECK(CameraConfig::steppedFov(105, 1) == 110);
+    // The ends hold.
+    CHECK(CameraConfig::steppedFov(60, -1) == 60);
+    CHECK(CameraConfig::steppedFov(110, 1) == 110);
+    // An angle a file gives between two choices goes to the one the step points at.
+    CHECK(CameraConfig::steppedFov(75.5f, 1) == 80);
+    CHECK(CameraConfig::steppedFov(75.5f, -1) == 75);
+    // One beyond the choices comes back to the nearest end either way.
+    CHECK(CameraConfig::steppedFov(45, -1) == 60);
+    CHECK(CameraConfig::steppedFov(45, 1) == 60);
+    CHECK(CameraConfig::steppedFov(170, 1) == 110);
+    CHECK(CameraConfig::steppedFov(170, -1) == 110);
+    CHECK(CameraConfig::steppedFov(std::numeric_limits<f32>::quiet_NaN(), 1) == 60);
+}

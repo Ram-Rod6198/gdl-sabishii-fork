@@ -56,7 +56,17 @@ struct TimingConfig {
 };
 
 struct CameraConfig {
-    f32 horizontalFovDegrees = 60.0f;
+    /** The Video page's Field of View choices: the original's sixty degrees, the default, out
+     * to a hundred and ten in fives. The file may say any angle; the page shows it as it is. */
+    static constexpr f32 kNarrowestFovDegrees = 60.0f;
+    static constexpr f32 kWidestFovDegrees = 110.0f;
+    static constexpr f32 kFovStepDegrees = 5.0f;
+    /** The choice a step of `direction` from `degrees` lands on, kept within the choices. */
+    static f32 steppedFov(f32 degrees, s32 direction);
+
+    /** How wide this machine draws its 3D views. Drawing only: what the game counts as on
+     * screen, and so who wakes, breeds and may walk where, keeps the original's sixty. */
+    f32 horizontalFovDegrees = kNarrowestFovDegrees;
     bool compass = false;
 };
 
