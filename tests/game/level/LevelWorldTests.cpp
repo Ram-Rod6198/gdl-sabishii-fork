@@ -460,7 +460,9 @@ TEST_CASE("province pickups stay inside breakable scenery instead of standing on
             continue;
         }
         const auto& instance = world.layout().itemInstances()[static_cast<usize>(item.instance)];
-        const auto support = ground.floorAt(instance.position, PlacedItems::kFloorReachAbove,
+        const auto support = ground.restingFloorAt(
+            instance.position, PlacedItems::kFloorReachAbove, PlacedItems::kFloorReachBelow, 1);
+        const auto highest = ground.floorAt(instance.position, PlacedItems::kFloorReachAbove,
                                             PlacedItems::kFloorReachBelow, 1);
         const auto lid = world.collision().floorAt(instance.position, PlacedItems::kFloorReachAbove,
                                                    PlacedItems::kFloorReachBelow);
@@ -468,7 +470,8 @@ TEST_CASE("province pickups stay inside breakable scenery instead of standing on
             lid->y <= support->y) {
             continue;
         }
-        CAPTURE(item.name, item.instance, instance.position.y, lid->y, support->y);
+        CAPTURE(item.name, item.instance, instance.position.y, lid->y, support->y, highest->y,
+                instance.position.x, instance.position.z);
         ++covered;
         CHECK(item.position.y == Approx(support->y + PlacedItems::kFloorLift));
     }
