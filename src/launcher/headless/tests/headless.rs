@@ -40,6 +40,7 @@ const STAGING_RANDOM: &str = "AbC123xy";
 /// The line that answers arguments the program does not take.
 const USAGE: &str = "usage: gdl-launcher-headless --check-payload [--payload <zip>] | \
                      --inspect <dir> [--json] | --check-folder <dir> [--json] | \
+                     --check-disc <image> | \
                      --extract <n64|dreamcast> <dump> --output <dir> [--strict script] | \
                      --check-feed | --update <dir> [--yes] [--offline] | --recover <dir> | \
                      --version\n";
