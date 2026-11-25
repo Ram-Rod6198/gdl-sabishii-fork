@@ -3024,4 +3024,160 @@ TEST_CASE("a momentary fade fades with no latch, requirement or oscillation to h
     STATIC_REQUIRE_FALSE(LevelTrigger::momentaryFade(LevelTrigger::kStaysSolid));
 }
 
+TEST_CASE("a choice platform waits under the player who chose it while the other one sinks",
+          "[game][world][triggers][platform-riders][c2-choice]") {
+    // levelC2's instances 40-43 (BRIDGEPAD, subtype 26, issue #82), bytes as on the disc but
+    // for the object indices and the chains' further links. A pad of radius twelve lies on
+    // each choice platform and takes only a player whose floor is that platform (0x100); it
+    // names its own platform and chains to a hidden pad naming the other one, whose record
+    // carries the four-unit drop (216,255 = -40 tenths) both platforms register.
+    // ProcessItemWobjs (0x80062A00) lowers the other one at once and holds the chosen one
+    // where it stands while did_generate finds a player on it: subtype 26 carries no 0x8.
+    SwitchFixture f(R"({"info":0,"position":[0,10,0],"params":[0,0,0,1,24,4,1,2,0,0,0,0]},
+                       {"info":0,"position":[-40,10,-20],"params":[1,0,0,0,8,4,2,0,0,0,216,255]},
+                       {"info":0,"position":[30,10,0],"params":[1,0,0,1,24,4,3,4,0,0,0,0]},
+                       {"info":0,"position":[-40,10,-30],"params":[0,0,0,0,8,4,4,0,0,0,216,255]})",
+                    R"({"name":"WALL","position":[0,10,0],"flags":4096},
+                       {"name":"WALL","position":[30,10,0],"flags":4096},
+                       {"name":"WALL","position":[-9,10,0],"flags":4096})",
+                    26);
+    constexpr s32 kForward = 0;
+    constexpr s32 kRight = 1;
+    constexpr s32 kNeighbour = 2;
+    const auto height = [&](s32 object) {
+        return f.scene.worldTransform(static_cast<usize>(object))[3].y;
+    };
+    REQUIRE(f.triggers.size() == 4);
+    REQUIRE((f.triggers.trigger(0).flags & LevelTrigger::kOnTarget) != 0);
+    REQUIRE(f.triggers.trigger(0).radius == Approx(12.0f));
+    REQUIRE(f.triggers.trigger(0).next == 1);
+    REQUIRE(f.triggers.trigger(2).next == 3);
+    WorldCollision collision;
+    // Well inside the pad's reach, but still on the platform beside it: nothing moves.
+    const std::array beside{
+        TriggerVisitor{.position = Vec3{-5, 10, 0}, .floorObject = kNeighbour, .party = 0}};
+    for (s32 tick = 0; tick < 30; ++tick) {
+        f.triggers.update(kStep, beside, f.animator, f.scene, &collision);
+    }
+    CHECK_FALSE(f.triggers.opened(kForward));
+    CHECK_FALSE(f.triggers.opened(kRight));
+    CHECK(height(kForward) == Approx(10.0f));
+    CHECK(height(kRight) == Approx(10.0f));
+    // On it, the choice is made: the other platform goes down its four units in a second,
+    // and this one stays put, solid, under the player for as long as they stand there.
+    const std::array chosen{
+        TriggerVisitor{.position = Vec3{0, 10, 0}, .floorObject = kForward, .party = 0}};
+    for (s32 tick = 0; tick < 45; ++tick) {
+        f.triggers.update(kStep, chosen, f.animator, f.scene, &collision);
+        CHECK(height(kForward) == Approx(10.0f));
+        CHECK_FALSE(collision.playerPassThrough(kForward));
+        CHECK_FALSE(collision.floorExitBlocked(kForward));
+    }
+    CHECK(f.triggers.opened(kForward));
+    CHECK_FALSE(f.triggers.settled(kForward));
+    CHECK(f.triggers.opened(kRight));
+    CHECK(f.triggers.settled(kRight));
+    CHECK(height(kRight) == Approx(6.0f));
+    // Its player gone, the chosen platform follows the other down.
+    for (s32 tick = 0; tick < 45; ++tick) {
+        f.triggers.update(kStep, beside, f.animator, f.scene, &collision);
+    }
+    CHECK(f.triggers.settled(kForward));
+    CHECK(height(kForward) == Approx(6.0f));
+}
+
+TEST_CASE("C2's choice platforms wait under the player on them while the path not taken sinks",
+          "[triggers][platform-riders][c2-choice][assets]") {
+    const auto root = test::assetOrSkip("WDATA/DESERT.WAD").parent_path().parent_path();
+    LevelCatalog catalog;
+    REQUIRE(catalog.load(root));
+    REQUIRE(catalog.byName("C2").has_value());
+    test::FakeRenderDevice device;
+    LevelWorld world;
+    REQUIRE(world.load(device, root, *catalog.byName("C2")));
+    world.startTriggers({});
+    const auto& objects = world.layout().objects();
+    const auto named = [&](std::string_view name) {
+        s32 found = -1;
+        for (usize i = 0; i < objects.size(); ++i) {
+            if (objects[i].name == name) {
+                REQUIRE(found == -1);
+                found = static_cast<s32>(i);
+            }
+        }
+        REQUIRE(found >= 0);
+        return found;
+    };
+    const auto& triggers = world.triggers();
+    const auto padOf = [&](s32 instance) {
+        usize found = triggers.size();
+        for (usize i = 0; i < triggers.size(); ++i) {
+            if (triggers.trigger(i).instance == instance) {
+                found = i;
+            }
+        }
+        REQUIRE(found < triggers.size());
+        return found;
+    };
+    const auto height = [&](s32 object) {
+        return world.scene().worldTransform(static_cast<usize>(object))[3].y;
+    };
+    // "Forward leads to health and happiness. Right leads to wealth and power." (the barrel
+    // at the maze's mouth holds the scroll): C1 ahead with the ham and potions, A3 to the
+    // right with the rapid fire and treasure. Each one's pad sinks the other through a chain.
+    struct Choice {
+        std::string_view taken;
+        std::string_view other;
+        std::string_view beside;
+        s32 pad;
+        s32 link;
+    };
+    const auto choice = GENERATE(Choice{"C2ELEVC1", "C2ELEVA3", "C2ELEVB1", 40, 41},
+                                 Choice{"C2ELEVA3", "C2ELEVC1", "C2ELEVA2", 42, 43});
+    CAPTURE(choice.taken);
+    const s32 taken = named(choice.taken);
+    const s32 other = named(choice.other);
+    const s32 beside = named(choice.beside);
+    const LevelTrigger pad = triggers.trigger(padOf(choice.pad));
+    const LevelTrigger link = triggers.trigger(padOf(choice.link));
+    REQUIRE(pad.target == taken);
+    REQUIRE((pad.flags & LevelTrigger::kOnTarget) != 0);
+    REQUIRE(pad.latch() == TriggerLatch::OpensOnce);
+    REQUIRE((pad.flags & LevelTrigger::kStaysSolid) == 0);
+    REQUIRE(pad.radius == Approx(12.0f));
+    REQUIRE_FALSE(pad.chained);
+    REQUIRE(pad.next == static_cast<s32>(padOf(choice.link)));
+    REQUIRE(link.target == other);
+    REQUIRE(link.chained);
+    const f32 takenAt = height(taken);
+    const f32 otherAt = height(other);
+    // Beside it and well inside the pad's twelve units, nothing moves.
+    const Vec3 neighbour = objects[static_cast<usize>(beside)].position;
+    const std::array nextDoor{TriggerVisitor{.position = Vec3{neighbour.x, pad.spot.y, neighbour.z},
+                                             .floorObject = beside,
+                                             .party = 0}};
+    for (s32 frame = 0; frame < 30; ++frame) {
+        world.updateTriggers(kStep, nextDoor);
+    }
+    CHECK_FALSE(triggers.opened(taken));
+    CHECK_FALSE(triggers.opened(other));
+    CHECK(height(taken) == Approx(takenAt));
+    CHECK(height(other) == Approx(otherAt));
+    // On it: the other path sinks four units, and this one waits, solid, under the player.
+    const std::array on{TriggerVisitor{.position = pad.spot, .floorObject = taken, .party = 0}};
+    for (s32 frame = 0; frame < 60; ++frame) {
+        world.updateTriggers(kStep, on);
+        CHECK(height(taken) == Approx(takenAt));
+        CHECK_FALSE(world.collision().playerPassThrough(taken));
+    }
+    CHECK(triggers.opened(taken));
+    CHECK(triggers.opened(other));
+    CHECK(height(other) == Approx(otherAt - 4.0f));
+    // Left, it sinks after the other.
+    for (s32 frame = 0; frame < 60; ++frame) {
+        world.updateTriggers(kStep, nextDoor);
+    }
+    CHECK(height(taken) == Approx(takenAt - 4.0f));
+}
+
 } // namespace
