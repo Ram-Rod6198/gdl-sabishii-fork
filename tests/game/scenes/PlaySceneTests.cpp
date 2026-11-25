@@ -473,6 +473,56 @@ TEST_CASE("a rendered tower camera directs a real player's cursor facing after a
     CHECK_FALSE(scene.cursorAim(pointer, origin));
 }
 
+TEST_CASE("a pushed right stick turns a real player the way the left stick would walk it",
+          "[controls][robotron][assets]") {
+    test::FakeRenderDevice device;
+    LevelWorld world;
+    const GameConfig config;
+    GameServices context;
+    context.config = &config;
+    context.unpackedRoot = unpackedRoot();
+    PlayScene scene;
+    const std::vector<PartyMember> party{PartyMember{0, CharacterSave{}}};
+    PlayOptions options;
+    options.welcome = false;
+    REQUIRE(scene.open(device, context, world, party, options));
+    for (s32 tick = 0; tick < 240; ++tick) {
+        scene.update(1.0 / 60.0, {});
+    }
+    REQUIRE_FALSE(awaitingEntrance(scene));
+    REQUIRE(scene.actor(0) != nullptr);
+    // Up the screen is the camera's own way; right of it a quarter turn on.
+    const f32 yaw = scene.camera().yaw();
+    const auto up = scene.stickAim(0, Vec2{0.0f, 1.0f});
+    REQUIRE(up);
+    CHECK(glm::distance(*up, Vec3{std::sin(yaw), 0.0f, std::cos(yaw)}) == Approx(0).margin(0.001));
+    const auto right = scene.stickAim(0, Vec2{1.0f, 0.0f});
+    REQUIRE(right);
+    CHECK(glm::dot(*up, *right) == Approx(0).margin(0.001));
+    CHECK_FALSE(scene.stickAim(3, Vec2{0.0f, 1.0f})); // nobody plays that seat
+    CHECK_FALSE(scene.stickAim(0, Vec2{0.0f, 0.0f})); // a stick at rest points nowhere
+
+    // The same heading a walk that way takes: the two sticks agree.
+    MoveInput walk;
+    walk.direction = Vec2{1.0f, 0.0f};
+    walk.magnitude = 1.0f;
+    const f32 heading = PlayerActor::headingOf(walk, yaw);
+    CHECK(glm::distance(*right, Vec3{std::sin(heading), 0.0f, std::cos(heading)}) ==
+          Approx(0).margin(0.001));
+
+    // Aimed with the attack held, as the reader sends it, the body turns to the stick.
+    PlayScene::Inputs inputs;
+    inputs[0].aimDirection = right;
+    inputs[0].freeMove = true;
+    inputs[0].attack = true;
+    inputs[0].attackPressed = true;
+    scene.update(1.0 / 60.0, inputs);
+    CHECK(std::cos(scene.actor(0)->yaw() - std::atan2(right->x, right->z)) ==
+          Approx(1.0).margin(0.001));
+    scene.close();
+    CHECK_FALSE(scene.stickAim(0, Vec2{0.0f, 1.0f}));
+}
+
 TEST_CASE("optional bloom and depth of field run after the world and before the HUD",
           "[bloom][dof][ambient-occlusion][assets]") {
     test::FakeRenderDevice device;

@@ -292,6 +292,49 @@ TEST_CASE("GameCube action chords follow remapped bindings and consume their par
     REQUIRE_FALSE(buttons.throwPotion);
 }
 
+TEST_CASE("the right stick walks when bound to, and aims only while bound to nothing",
+          "[game][players][controls]") {
+    Input input;
+    PadSnapshot pad;
+    pad.connected = true;
+    pad.axes[static_cast<usize>(PadAxis::RightX)] = 0.6f;
+    pad.axes[static_cast<usize>(PadAxis::RightY)] = -0.8f; // up: the y axis grows downwards
+    input.setPad(0, pad);
+    PlayBindings b;
+
+    // Unbound, it is the aim: a unit direction, x right and y up the screen.
+    auto aim = readAimStick(input, b, 0);
+    REQUIRE(aim);
+    CHECK(aim->x == Approx(0.6f));
+    CHECK(aim->y == Approx(0.8f));
+    CHECK_FALSE(readMoveInput(input, b, false, 0).any());
+    // No pad, another pad, or a stick inside the dead zone aims nothing.
+    CHECK_FALSE(readAimStick(input, b, kNoPad));
+    CHECK_FALSE(readAimStick(input, b, kAllPads));
+    CHECK_FALSE(readAimStick(input, b, 1));
+    b.stickDeadZone = 1.5f;
+    CHECK_FALSE(readAimStick(input, b, 0));
+    b.stickDeadZone = 0.25f;
+
+    // Bound to walking it walks, analogue like the left stick, and no longer aims.
+    b.padUp = {PadButton::RightStickUp};
+    b.padDown = {PadButton::RightStickDown};
+    b.padLeft = {PadButton::RightStickLeft};
+    b.padRight = {PadButton::RightStickRight};
+    const MoveInput move = readMoveInput(input, b, false, 0);
+    REQUIRE(move.any());
+    CHECK(move.direction.x == Approx(0.6f));
+    CHECK(move.direction.y == Approx(0.8f));
+    CHECK(move.magnitude == Approx(1.0f));
+    CHECK_FALSE(readAimStick(input, b, 0));
+
+    // Bound to a button's action it is that button.
+    PlayBindings attack;
+    attack.padAttack = {PadButton::RightStickRight};
+    CHECK(readPlayButtons(input, attack, false, 0).attack);
+    CHECK_FALSE(readAimStick(input, attack, 0));
+}
+
 TEST_CASE("chords cannot combine different pads or a keyboard with a pad",
           "[game][players][controls]") {
     Input input;

@@ -20,11 +20,23 @@ PlayInputReader::Frame PlayInputReader::read(const SceneInput& input, f64 second
         const auto& bindings = playBindings(input.config(), slot);
         PlayInput& in = frame[index];
         in.move = readMoveInput(input.devices(), bindings, source.keyboard, source.pad);
-        in.freeMove =
-            source.keyboard && input.config().controls[index].scheme == KeyboardScheme::Robotron;
+        const bool robotron = input.config().controls[index].scheme == KeyboardScheme::Robotron;
+        in.freeMove = source.keyboard && robotron;
         if (m_cursors[index].update(input.devices(), bindings, source.keyboard, source.pad)) {
             const Vec2 cursor{input.devices().pointer().x, input.devices().pointer().y};
             in.aimDirection = aim.toward(slot, cursor);
+        }
+        // Robotron on a pad is twin sticks: the left walks, and the right, while it is pushed,
+        // turns the character its way and attacks, as the mouse and its button do.
+        bool stickAiming = false;
+        if (robotron) {
+            if (const auto stick = readAimStick(input.devices(), bindings, source.pad)) {
+                if (const auto facing = aim.along(slot, *stick)) {
+                    in.aimDirection = facing;
+                    in.freeMove = true;
+                    stickAiming = true;
+                }
+            }
         }
         const PlayButtons buttons = m_buttons[index].read(
             input.devices(), bindings, source.keyboard, source.pad, static_cast<f32>(seconds));
@@ -39,6 +51,11 @@ PlayInputReader::Frame PlayInputReader::read(const SceneInput& input, f64 second
         in.combo = buttons.combo;
         in.chargePressed = buttons.chargePressed;
         in.attackPressed = buttons.attackPressed;
+        if (stickAiming) {
+            in.attack = true;
+            in.attackPressed = in.attackPressed || !m_stickAiming[index];
+        }
+        m_stickAiming[index] = stickAiming;
         in.turboAttackPressed = buttons.turboAttackPressed;
         in.selector = SelectorInput{buttons.selectorUp, buttons.selectorDown, buttons.selectorLeft,
                                     buttons.selectorRight};
@@ -52,6 +69,7 @@ void PlayInputReader::reset() {
     for (PlayerControlReader& buttons : m_buttons) {
         buttons.reset();
     }
+    m_stickAiming = {};
 }
 
 } // namespace gdl::game

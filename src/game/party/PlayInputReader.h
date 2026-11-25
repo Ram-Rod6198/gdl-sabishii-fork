@@ -15,7 +15,8 @@
 namespace gdl::game {
 
 /** This machine's play input, one entry per input slot: its stick, its buttons through their
- * tap and hold gestures, the cursor's aim once the mouse takes over, its menu presses and
+ * tap and hold gestures, the cursor's aim once the mouse takes over, the right stick's under
+ * Robotron, its menu presses and
  * movie vote. Time advances only for the frames it reads. */
 class PlayInputReader {
 public:
@@ -28,6 +29,10 @@ public:
         /** The facing that turns the character `inputSlot` plays toward `cursor`: zero keeps
          * the facing it has, none leaves the facing to the stick. */
         virtual std::optional<Vec3> toward(s32 inputSlot, Vec2 cursor) const = 0;
+        /** The facing a stick pushed `stick`'s way (a unit direction, x right and y up the
+         * screen) asks of the character `inputSlot` plays, read against the camera its
+         * walking is: none when the slot plays nobody. */
+        virtual std::optional<Vec3> along(s32 inputSlot, Vec2 stick) const = 0;
     };
 
     /** Every input slot's controls from this update's devices; their gestures advance by
@@ -39,6 +44,7 @@ public:
 private:
     std::array<PlayerControlReader, kInputSlots> m_buttons;
     std::array<CursorInput, kInputSlots> m_cursors;
+    std::array<bool, kInputSlots> m_stickAiming{}; ///< the right stick aimed at the last read
 };
 
 } // namespace gdl::game

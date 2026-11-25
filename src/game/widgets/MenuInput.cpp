@@ -101,7 +101,7 @@ MenuInput readMenuInput(const Input& input, const MenuBindings& bindings, MenuIn
     for (s32 pad = range.first; pad <= range.last; ++pad) {
         for (usize i = 0; i < static_cast<usize>(PadButton::Count); ++i) {
             const auto button = static_cast<PadButton>(i);
-            if (button < PadButton::LeftStickUp || button > PadButton::LeftStickLeft) {
+            if (button < PadButton::LeftStickUp || button > PadButton::RightStickLeft) {
                 out.buttonPressed |= input.wasPadButtonPressed(pad, button);
             }
         }

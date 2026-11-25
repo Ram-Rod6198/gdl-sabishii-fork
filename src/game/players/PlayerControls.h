@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <optional>
 
 #include "engine/core/Types.h"
 #include "engine/math/Math.h"
@@ -25,6 +26,11 @@ struct MoveInput {
  * directional buttons, and the bound keys, added together and clamped to full deflection.
  */
 MoveInput readMoveInput(const Input& input, const PlayBindings& bindings, bool keyboard, s32 pad);
+
+/** Where the pad `pad`'s right stick points past the dead zone, as a unit direction (x right,
+ * y up the screen): the twin-stick scheme's aim. None at rest, without the pad, or while any
+ * play action is bound to the right stick. */
+std::optional<Vec2> readAimStick(const Input& input, const PlayBindings& bindings, s32 pad);
 
 /** A player's buttons for a frame of play: what is held, and the selector's presses. */
 struct PlayButtons {

@@ -428,6 +428,10 @@ public:
     WorldCamera simulationCamera() const;
     /** Horizontal world direction, zero in the cursor dead zone; never a world target. */
     std::optional<Vec3> cursorAim(Vec2 cursor, const Vec3& position) const;
+    /** Horizontal world direction of a stick pushed `stick`'s way (x right, y up the screen)
+     * by `player`, against the camera that player's walking is read against; none without
+     * that player. */
+    std::optional<Vec3> stickAim(s32 player, Vec2 stick) const;
     /** The boss fight's camera, used while a boss level's boss stands. */
     const BossCamera& bossCamera() const { return m_sim.bossCamera; }
     bool bossCameraOn() const;
@@ -785,6 +789,8 @@ private:
     WorldCamera cameraFor(const PlayerActor& actor) const;
     /** The yaw each member's stick is read against, `shared` unless solo cameras hold. */
     std::vector<f32> movementYaws(f32 shared) const;
+    /** The yaw the party's sticks are read against where no member has a camera of its own. */
+    f32 sharedMovementYaw() const;
     /** The seats whose companions the arrows point to: the shown seat alone under solo
      * cameras, else this machine's. */
     u8 arrowOwnSeats() const;

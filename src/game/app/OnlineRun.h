@@ -61,6 +61,7 @@ public:
     bool hasCompletedProgress() const;
     bool saveCompletedProgress();
     std::optional<Vec3> cursorAim(s32 device, Vec2 cursor) const;
+    std::optional<Vec3> stickAim(s32 device, Vec2 stick) const;
     bool consoleHost() const;
     bool consoleAllowed() const;
     bool setConsolePermissions(bool enabled);

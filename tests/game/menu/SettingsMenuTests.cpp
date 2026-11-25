@@ -1413,10 +1413,10 @@ TEST_CASE("controls lists a hot-plugged controller and cancels capture without c
     f.applyControls();
     CHECK(f.config.controls[0].device == "test-guid");
     CHECK(f.menu.menu().definition().items[0].value == "Linux USB Gamepad 1");
-    CHECK(f.menu.menu().definition().items[1].value == "Left Stick Up");
-    CHECK(f.menu.menu().definition().items[2].value == "Left Stick Down");
-    CHECK(f.menu.menu().definition().items[3].value == "Left Stick Left");
-    CHECK(f.menu.menu().definition().items[4].value == "Left Stick Right");
+    CHECK(f.menu.menu().definition().items[2].value == "Left Stick Up");
+    CHECK(f.menu.menu().definition().items[3].value == "Left Stick Down");
+    CHECK(f.menu.menu().definition().items[4].value == "Left Stick Left");
+    CHECK(f.menu.menu().definition().items[5].value == "Left Stick Right");
     f.menu.menu().focus(5);
     f.select();
     physical.beginPoll();
@@ -1482,11 +1482,15 @@ TEST_CASE("controller default rows expose stick directions and potion gestures b
     f.right();
     f.right(); // Player 1 skips None.
     REQUIRE(f.menu.menu().definition().items[0].value == "XInput Controller 1");
-    CHECK(f.menu.menu().definition().items[1].value == "Left Stick Up");
+    const auto& rows = f.menu.menu().definition().items;
+    const auto moveUp = std::ranges::find(rows, "Move Up", &MenuItem::text);
+    REQUIRE(moveUp != rows.end());
+    CHECK(moveUp->value == "Left Stick Up");
     // The actions stand in one column after the device: the potion gestures on their rows.
-    CHECK(f.menu.menu().definition().items[9].text == "Throw Potion");
-    CHECK(f.menu.menu().definition().items[9].value == "X (hold)");
-    CHECK(f.menu.menu().definition().items[10].value == "X (double tap)");
+    const auto throwRow = std::ranges::find(rows, "Throw Potion", &MenuItem::text);
+    REQUIRE(throwRow != rows.end());
+    CHECK(throwRow->value == "X (hold)");
+    CHECK(std::next(throwRow)->value == "X (double tap)");
     CHECK(f.settings.writes == 0);
     // An unplugged device cannot remove the last available input route.
     physical.setPad(0, {});
@@ -2165,7 +2169,7 @@ TEST_CASE("a keyboard player's control scheme stands under its device, is turned
     CHECK(f.menu.menu().definition().items[1].value == "Tank");
     f.applyControls();
     CHECK(f.config.controls[0].scheme == KeyboardScheme::Tank);
-    // A player on a controller alone has no scheme to choose.
+    // A player on a controller alone chooses it too: there Robotron is twin sticks.
     Input physical;
     PadSnapshot pad;
     pad.connected = true;
@@ -2176,5 +2180,21 @@ TEST_CASE("a keyboard player's control scheme stands under its device, is turned
     f.select();
     f.menu.update(readPlayerMenuInput(physical, f.config, 2), 1);
     const auto& padItems = f.menu.menu().definition().items;
-    CHECK(std::ranges::find(padItems, 106, &MenuItem::code) == padItems.end());
+    REQUIRE(padItems.size() > 2);
+    REQUIRE(padItems[1].code == 106);
+    CHECK(padItems[1].value == "Tank");
+    f.focus(106);
+    f.right();
+    CHECK(f.menu.menu().definition().items[1].value == "Robotron");
+    f.release();
+    f.applyControls();
+    CHECK(f.config.controls[2].scheme == KeyboardScheme::Robotron);
+    CHECK(f.config.controls[0].scheme == KeyboardScheme::Tank);
+    // A player whose pad is not there has nothing to choose it for.
+    f.back();
+    f.menu.menu().focus(3);
+    f.select();
+    f.menu.update(readPlayerMenuInput(physical, f.config, 3), 1);
+    const auto& absentItems = f.menu.menu().definition().items;
+    CHECK(std::ranges::find(absentItems, 106, &MenuItem::code) == absentItems.end());
 }

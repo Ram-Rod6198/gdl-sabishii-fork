@@ -707,6 +707,26 @@ std::optional<Vec3> OnlineRun::cursorAim(s32 device, Vec2 cursor) const {
 #endif
     return std::nullopt;
 }
+std::optional<Vec3> OnlineRun::stickAim(s32 device, Vec2 stick) const {
+    if (!m_impl) {
+        return std::nullopt;
+    }
+#if GDL_ENABLE_NETPLAY
+    const auto& run = *m_impl;
+    for (const auto seat : run.session->seats()) {
+        if (run.selection.device(*run.session, seat) != device) {
+            continue;
+        }
+        if (const auto* scene = run.nativePlay.scene()) {
+            return scene->stickAim(seat, stick);
+        }
+    }
+#else
+    (void)device;
+    (void)stick;
+#endif
+    return std::nullopt;
+}
 bool OnlineRun::consoleHost() const {
 #if GDL_ENABLE_NETPLAY
     return m_impl && m_impl->session && m_impl->session->host();

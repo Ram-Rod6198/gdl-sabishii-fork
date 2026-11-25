@@ -1,7 +1,10 @@
 #include "game/players/PlayerControls.h"
 
 #include <algorithm>
+#include <array>
+#include <optional>
 #include <span>
+#include <vector>
 
 #include "engine/core/Types.h"
 
@@ -13,7 +16,8 @@ bool anyKeyDown(const Input& input, std::span<const Key> keys) {
     return std::ranges::any_of(keys, [&](Key key) { return input.isKeyDown(key); });
 }
 
-f32 movementAmount(const Input& input, s32 pad, std::span<const PadButton> buttons, Vec2 analog) {
+f32 movementAmount(const Input& input, s32 pad, std::span<const PadButton> buttons, Vec2 analog,
+                   Vec2 right) {
     f32 amount = 0;
     for (const auto button : buttons) {
         f32 value = 0;
@@ -22,6 +26,10 @@ f32 movementAmount(const Input& input, s32 pad, std::span<const PadButton> butto
         case PadButton::LeftStickDown: value = -analog.y; break;
         case PadButton::LeftStickLeft: value = -analog.x; break;
         case PadButton::LeftStickRight: value = analog.x; break;
+        case PadButton::RightStickUp: value = right.y; break;
+        case PadButton::RightStickDown: value = -right.y; break;
+        case PadButton::RightStickLeft: value = -right.x; break;
+        case PadButton::RightStickRight: value = right.x; break;
         default: value = input.isPadButtonDown(pad, button) ? 1.0f : 0.0f; break;
         }
         amount = std::max(amount, value);
@@ -29,10 +37,11 @@ f32 movementAmount(const Input& input, s32 pad, std::span<const PadButton> butto
     return amount;
 }
 
-/** The stick's deflection beyond the dead zone, rescaled so full tilt stays 1. */
-Vec2 stick(const Input& input, s32 pad, f32 deadZone) {
+/** A stick's deflection beyond the dead zone, rescaled so full tilt stays 1. */
+Vec2 stick(const Input& input, s32 pad, f32 deadZone, PadAxis x = PadAxis::LeftX,
+           PadAxis y = PadAxis::LeftY) {
     // The pad's y axis grows downwards; forward is up.
-    const Vec2 raw{input.padAxis(pad, PadAxis::LeftX), -input.padAxis(pad, PadAxis::LeftY)};
+    const Vec2 raw{input.padAxis(pad, x), -input.padAxis(pad, y)};
     const f32 length = glm::length(raw);
     if (length <= deadZone || length <= 0.0f) {
         return Vec2{0.0f, 0.0f};
@@ -43,6 +52,28 @@ Vec2 stick(const Input& input, s32 pad, f32 deadZone) {
 }
 
 } // namespace
+
+std::optional<Vec2> readAimStick(const Input& input, const PlayBindings& bindings, s32 pad) {
+    if (pad < 0 || !input.isPadConnected(pad)) {
+        return std::nullopt;
+    }
+    // A right stick bound to any play action keeps to what it is bound to.
+    const auto onRightStick = [](PadButton button) {
+        return button >= PadButton::RightStickUp && button <= PadButton::RightStickLeft;
+    };
+    for (const ControlAction& action : controlActions()) {
+        if (action.buttons != nullptr &&
+            std::ranges::any_of(bindings.*action.buttons, onRightStick)) {
+            return std::nullopt;
+        }
+    }
+    const Vec2 aim = stick(input, pad, bindings.stickDeadZone, PadAxis::RightX, PadAxis::RightY);
+    const f32 length = glm::length(aim);
+    if (length <= 0.0f) {
+        return std::nullopt;
+    }
+    return aim / length;
+}
 
 MoveInput readMoveInput(const Input& input, const PlayBindings& bindings, bool keyboard, s32 pad) {
     Vec2 sum{0.0f, 0.0f};
@@ -65,10 +96,12 @@ MoveInput readMoveInput(const Input& input, const PlayBindings& bindings, bool k
             continue;
         }
         const Vec2 analog = stick(input, index, bindings.stickDeadZone);
-        sum.x += movementAmount(input, index, bindings.padRight, analog);
-        sum.x -= movementAmount(input, index, bindings.padLeft, analog);
-        sum.y += movementAmount(input, index, bindings.padUp, analog);
-        sum.y -= movementAmount(input, index, bindings.padDown, analog);
+        const Vec2 right =
+            stick(input, index, bindings.stickDeadZone, PadAxis::RightX, PadAxis::RightY);
+        sum.x += movementAmount(input, index, bindings.padRight, analog, right);
+        sum.x -= movementAmount(input, index, bindings.padLeft, analog, right);
+        sum.y += movementAmount(input, index, bindings.padUp, analog, right);
+        sum.y -= movementAmount(input, index, bindings.padDown, analog, right);
     }
     MoveInput out;
     const f32 length = glm::length(sum);

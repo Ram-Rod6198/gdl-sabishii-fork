@@ -76,7 +76,7 @@ TEST_CASE("scroll continuation accepts fresh buttons on assigned devices without
             pad.axes[static_cast<usize>(axis)] = 1;
         }
         input.setPad(3, pad);
-        const bool stick = button >= PadButton::LeftStickUp && button <= PadButton::LeftStickLeft;
+        const bool stick = button >= PadButton::LeftStickUp && button <= PadButton::RightStickLeft;
         CHECK(readMenuInput(input, unbound, {false, 3}).buttonPressed == !stick);
         CHECK_FALSE(readMenuInput(input, unbound, {true, 0}).buttonPressed);
         input.beginPoll();

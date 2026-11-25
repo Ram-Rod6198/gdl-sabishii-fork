@@ -47,12 +47,20 @@ public:
         m_asked.emplace_back(inputSlot, cursor);
         return m_facing;
     }
+    /** A stick is answered with the way it points, laid on the ground: x right, z ahead. */
+    std::optional<Vec3> along(s32 inputSlot, Vec2 stick) const override {
+        m_sticks.emplace_back(inputSlot, stick);
+        return Vec3{stick.x, 0.0f, stick.y};
+    }
+    /** The slots whose sticks asked since the last take, each with its direction. */
+    std::vector<std::pair<s32, Vec2>> takeSticks() { return std::exchange(m_sticks, {}); }
     /** The slots that asked since the last take, each with its cursor. */
     std::vector<std::pair<s32, Vec2>> take() { return std::exchange(m_asked, {}); }
 
 private:
     Vec3 m_facing;
     mutable std::vector<std::pair<s32, Vec2>> m_asked;
+    mutable std::vector<std::pair<s32, Vec2>> m_sticks;
 };
 
 /** Every field of a reading, so that two readings compare whole. */
@@ -103,7 +111,8 @@ TEST_CASE("each input slot plays from its own devices", "[game][party][controls]
     CHECK(moved[1].attack);
 }
 
-TEST_CASE("Robotron movement works only on the keyboard slot", "[game][party][controls]") {
+TEST_CASE("Robotron movement belongs to the keyboard slot and to a pushed right stick",
+          "[game][party][controls]") {
     GameConfig config;
     config.controls[0].scheme = KeyboardScheme::Robotron;
     config.controls[1].scheme = KeyboardScheme::Robotron; // a pad's slot
@@ -128,6 +137,114 @@ TEST_CASE("Robotron movement works only on the keyboard slot", "[game][party][co
     const auto moved = reader.read(scene, kUpdate, aim);
     CHECK(moved[1].freeMove);
     CHECK_FALSE(moved[0].freeMove);
+}
+
+TEST_CASE("Robotron on a pad aims and attacks with the right stick while it is pushed",
+          "[game][party][controls]") {
+    GameConfig config;
+    config.controls[1].scheme = KeyboardScheme::Robotron; // pad 1's slot
+    Input input;
+    PadSnapshot pad = padHolding({});
+    const auto push = [&](f32 leftX, f32 rightX, f32 rightY) {
+        input.beginPoll();
+        pad.axes[static_cast<usize>(PadAxis::LeftX)] = leftX;
+        pad.axes[static_cast<usize>(PadAxis::RightX)] = rightX;
+        pad.axes[static_cast<usize>(PadAxis::RightY)] = rightY;
+        input.setPad(1, pad);
+        input.setPad(2, pad); // a Tank slot's pad doing the same
+    };
+    const SceneInput scene{input, config};
+    PlayInputReader reader;
+    RecordingAim aim{Vec3{0.0f, 0.0f, 1.0f}};
+
+    // At rest the pad plays as it always has: the stick walks, nothing aims or attacks.
+    push(1.0f, 0.0f, 0.0f);
+    auto frame = reader.read(scene, kUpdate, aim);
+    CHECK(frame[1].move.direction.x > 0.0f);
+    CHECK_FALSE(frame[1].aimDirection.has_value());
+    CHECK_FALSE(frame[1].freeMove);
+    CHECK_FALSE(frame[1].attack);
+    CHECK(aim.takeSticks().empty());
+
+    // Inside the dead zone the right stick is still at rest.
+    push(1.0f, 0.2f, 0.0f);
+    frame = reader.read(scene, kUpdate, aim);
+    CHECK_FALSE(frame[1].aimDirection.has_value());
+    CHECK_FALSE(frame[1].attack);
+
+    // Pushed up the screen (the pad's y axis grows downwards) it aims there and attacks,
+    // while the left stick goes on walking its own way.
+    push(1.0f, 0.0f, -1.0f);
+    frame = reader.read(scene, kUpdate, aim);
+    auto sticks = aim.takeSticks();
+    REQUIRE(sticks.size() == 1);
+    CHECK(sticks[0].first == 1);
+    CHECK(sticks[0].second == Vec2{0.0f, 1.0f});
+    CHECK(frame[1].aimDirection == Vec3{0.0f, 0.0f, 1.0f});
+    CHECK(frame[1].freeMove);
+    CHECK(frame[1].attack);
+    CHECK(frame[1].attackPressed); // the push is the press
+    CHECK(frame[1].move.direction.x > 0.0f);
+    // The same pad under Tank does none of it.
+    CHECK_FALSE(frame[2].aimDirection.has_value());
+    CHECK_FALSE(frame[2].freeMove);
+    CHECK_FALSE(frame[2].attack);
+
+    // Held, it goes on aiming and attacking without pressing again; turned, it aims anew.
+    push(0.0f, 1.0f, 0.0f);
+    frame = reader.read(scene, kUpdate, aim);
+    CHECK(frame[1].aimDirection == Vec3{1.0f, 0.0f, 0.0f});
+    CHECK(frame[1].attack);
+    CHECK_FALSE(frame[1].attackPressed);
+    CHECK_FALSE(frame[1].move.any());
+
+    // Let go, the attack ends and the facing goes back to the stick that walks.
+    push(0.0f, 0.0f, 0.0f);
+    frame = reader.read(scene, kUpdate, aim);
+    CHECK_FALSE(frame[1].aimDirection.has_value());
+    CHECK_FALSE(frame[1].freeMove);
+    CHECK_FALSE(frame[1].attack);
+    CHECK_FALSE(frame[1].attackPressed);
+
+    // A right stick bound to actions keeps to them: it works the selector, and aims nothing.
+    config.controls[1].customized = true;
+    config.controls[1].play.padSelectorUp = {PadButton::RightStickUp};
+    aim.takeSticks();
+    push(0.0f, 0.0f, -1.0f);
+    frame = reader.read(scene, kUpdate, aim);
+    CHECK(frame[1].selector.up);
+    CHECK_FALSE(frame[1].aimDirection.has_value());
+    CHECK_FALSE(frame[1].attack);
+    CHECK(aim.takeSticks().empty());
+}
+
+TEST_CASE("the right stick takes the facing from the mouse on a slot that has both",
+          "[game][party][controls][cursor]") {
+    GameConfig config; // automatic: slot 0 has the keyboard and pad 0
+    config.controls[0].scheme = KeyboardScheme::Robotron;
+    Input input;
+    input.setPointer({0.5f, 0.5f, true, false});
+    PadSnapshot pad = padHolding({});
+    input.setPad(0, pad);
+    const SceneInput scene{input, config};
+    PlayInputReader reader;
+    const RecordingAim aim{Vec3{0.0f, 0.0f, -1.0f}};
+    reader.read(scene, kUpdate, aim);
+    input.beginPoll();
+    input.setPointer({0.75f, 0.25f, true, false});
+    input.setPad(0, pad);
+    auto frame = reader.read(scene, kUpdate, aim);
+    REQUIRE(frame[0].aimDirection == Vec3{0.0f, 0.0f, -1.0f}); // the mouse's
+    CHECK(frame[0].freeMove);
+    CHECK_FALSE(frame[0].attack);
+
+    input.beginPoll();
+    pad.axes[static_cast<usize>(PadAxis::RightX)] = -1.0f;
+    input.setPad(0, pad);
+    frame = reader.read(scene, kUpdate, aim);
+    CHECK(frame[0].aimDirection == Vec3{-1.0f, 0.0f, 0.0f}); // the stick's
+    CHECK(frame[0].freeMove);
+    CHECK(frame[0].attack);
 }
 
 TEST_CASE("the cursor aims only for its own slot after the mouse takes over",

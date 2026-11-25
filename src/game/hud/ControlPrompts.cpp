@@ -35,6 +35,10 @@ std::string buttonLabel(PadButton button) {
     case PadButton::LeftStickDown: return "LS-Down";
     case PadButton::LeftStickLeft: return "LS-Left";
     case PadButton::LeftStickRight: return "LS-Right";
+    case PadButton::RightStickUp: return "RS-Up";
+    case PadButton::RightStickDown: return "RS-Down";
+    case PadButton::RightStickLeft: return "RS-Left";
+    case PadButton::RightStickRight: return "RS-Right";
     default: return std::string(padButtonName(button));
     }
 }

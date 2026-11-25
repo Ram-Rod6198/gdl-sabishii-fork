@@ -118,6 +118,10 @@ enum class PadButton : u8 {
     LeftStickRight,
     LeftStickDown,
     LeftStickLeft,
+    RightStickUp, ///< the right stick's, so it can be bound like any button
+    RightStickRight,
+    RightStickDown,
+    RightStickLeft,
     Button1,
     Button2,
     Button3,

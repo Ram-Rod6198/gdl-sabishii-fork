@@ -59,6 +59,9 @@ public:
         }
         return std::nullopt;
     }
+    std::optional<Vec3> along(s32 inputSlot, Vec2 stick) const override {
+        return m_scene.stickAim(inputSlot, stick);
+    }
 
 private:
     const PlayScene& m_scene;
@@ -70,6 +73,9 @@ public:
     explicit OnlineAim(const OnlineRun& run) : m_run(run) {}
     std::optional<Vec3> toward(s32 inputSlot, Vec2 cursor) const override {
         return m_run.cursorAim(inputSlot, cursor);
+    }
+    std::optional<Vec3> along(s32 inputSlot, Vec2 stick) const override {
+        return m_run.stickAim(inputSlot, stick);
     }
 
 private:

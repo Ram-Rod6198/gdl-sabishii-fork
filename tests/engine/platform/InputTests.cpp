@@ -314,4 +314,52 @@ TEST_CASE("virtual stick directions latch per axis without inventing D-pad input
     CHECK(input.padAxis(3, PadAxis::LeftX) == 0.0f);
 }
 
+TEST_CASE("the right stick has virtual directions of its own, apart from the left's",
+          "[platform][input]") {
+    Input input;
+    PadSnapshot pad;
+    pad.connected = true;
+    pad.axes[static_cast<usize>(PadAxis::RightX)] = 0.49f;
+    input.setPad(1, pad);
+    CHECK_FALSE(input.isPadButtonDown(1, PadButton::RightStickRight));
+    pad.axes[static_cast<usize>(PadAxis::RightX)] = 0.6f;
+    pad.axes[static_cast<usize>(PadAxis::RightY)] = -0.9f; // the pad's y axis grows downwards
+    input.setPad(1, pad);
+    CHECK(input.wasPadButtonPressed(1, PadButton::RightStickRight));
+    CHECK(input.wasPadButtonPressed(1, PadButton::RightStickUp));
+    CHECK_FALSE(input.isPadButtonDown(1, PadButton::RightStickLeft));
+    CHECK_FALSE(input.isPadButtonDown(1, PadButton::RightStickDown));
+    // Neither stick presses the other's directions.
+    CHECK_FALSE(input.isPadButtonDown(1, PadButton::LeftStickRight));
+    CHECK_FALSE(input.isPadButtonDown(1, PadButton::LeftStickUp));
+    input.beginPoll();
+    pad.axes[static_cast<usize>(PadAxis::RightX)] = 0.45f; // held until it falls below 0.4
+    pad.axes[static_cast<usize>(PadAxis::RightY)] = 0.7f;
+    input.setPad(1, pad);
+    CHECK(input.isPadButtonDown(1, PadButton::RightStickRight));
+    CHECK_FALSE(input.wasPadButtonPressed(1, PadButton::RightStickRight));
+    CHECK_FALSE(input.isPadButtonDown(1, PadButton::RightStickUp));
+    CHECK(input.wasPadButtonPressed(1, PadButton::RightStickDown));
+    pad.axes[static_cast<usize>(PadAxis::LeftX)] = -1.0f;
+    pad.axes[static_cast<usize>(PadAxis::RightX)] = 0.0f;
+    pad.axes[static_cast<usize>(PadAxis::RightY)] = 0.0f;
+    input.setPad(1, pad);
+    CHECK(input.isPadButtonDown(1, PadButton::LeftStickLeft));
+    CHECK_FALSE(input.isPadButtonDown(1, PadButton::RightStickLeft));
+    CHECK_FALSE(input.isPadButtonDown(1, PadButton::RightStickRight));
+    CHECK_FALSE(input.isPadButtonDown(1, PadButton::RightStickDown));
+
+    // They are named in the settings like any button, and the names before them keep theirs.
+    for (const PadButton button :
+         {PadButton::RightStickUp, PadButton::RightStickRight, PadButton::RightStickDown,
+          PadButton::RightStickLeft, PadButton::LeftStickLeft, PadButton::Button1,
+          PadButton::Button32}) {
+        CHECK(padButtonFromName(padButtonName(button)) == button);
+    }
+    CHECK(padButtonName(PadButton::RightStickUp) == "RightStickUp");
+    CHECK(padButtonName(PadButton::RightStickLeft) == "RightStickLeft");
+    CHECK(padButtonName(PadButton::Button1) == "Button1");
+    CHECK(padButtonName(PadButton::Button32) == "Button32");
+}
+
 } // namespace

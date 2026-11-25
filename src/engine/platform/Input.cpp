@@ -61,6 +61,10 @@ constexpr std::array<std::string_view, static_cast<usize>(PadButton::Count)> kPa
     "LeftStickRight",
     "LeftStickDown",
     "LeftStickLeft",
+    "RightStickUp",
+    "RightStickRight",
+    "RightStickDown",
+    "RightStickLeft",
     "Button1",
     "Button2",
     "Button3",
@@ -266,14 +270,21 @@ void Input::setPad(s32 pad, const PadSnapshot& snapshot) {
         }
         // Virtual buttons preserve per-device edges and let menus bind the stick
         // without hijacking the gameplay inventory's directional buttons.
-        for (const auto button : {PadButton::LeftStickUp, PadButton::LeftStickRight,
-                                  PadButton::LeftStickDown, PadButton::LeftStickLeft}) {
-            const bool vertical =
-                button == PadButton::LeftStickUp || button == PadButton::LeftStickDown;
-            const bool negative =
-                button == PadButton::LeftStickUp || button == PadButton::LeftStickLeft;
-            const f32 direction = negative ? -1.0f : 1.0f;
-            const auto axis = vertical ? PadAxis::LeftY : PadAxis::LeftX;
+        struct StickButton {
+            PadButton button;
+            PadAxis axis;
+            f32 direction;
+        };
+        for (const auto [button, axis, direction] : {
+                 StickButton{PadButton::LeftStickUp, PadAxis::LeftY, -1.0f},
+                 StickButton{PadButton::LeftStickRight, PadAxis::LeftX, 1.0f},
+                 StickButton{PadButton::LeftStickDown, PadAxis::LeftY, 1.0f},
+                 StickButton{PadButton::LeftStickLeft, PadAxis::LeftX, -1.0f},
+                 StickButton{PadButton::RightStickUp, PadAxis::RightY, -1.0f},
+                 StickButton{PadButton::RightStickRight, PadAxis::RightX, 1.0f},
+                 StickButton{PadButton::RightStickDown, PadAxis::RightY, 1.0f},
+                 StickButton{PadButton::RightStickLeft, PadAxis::RightX, -1.0f},
+             }) {
             const f32 threshold = previous.connected && previous.guid == snapshot.guid &&
                                           previous.buttons[index(button)]
                                       ? 0.4f

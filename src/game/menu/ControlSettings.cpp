@@ -141,8 +141,9 @@ void ControlSettings::define(MenuDefinition& definition, const TextPainter& pain
     const auto actions = controlActions();
     const auto assigned = controlDevices(config, m_devices)[static_cast<usize>(m_player)];
     const bool canBind = assigned.keyboard || m_devices.isPadConnected(assigned.pad);
-    // The mouse and keyboard's scheme stands at the top of their settings.
-    if (assigned.keyboard) {
+    // The scheme stands at the top of a device's settings: the mouse and keyboard's, and a
+    // connected pad's, whose Robotron is twin sticks.
+    if (canBind) {
         rows.value(text("controls.scheme"), kScheme,
                    text(profile.scheme == KeyboardScheme::Robotron ? "controls.robotron"
                                                                    : "controls.tank"));
@@ -153,6 +154,10 @@ void ControlSettings::define(MenuDefinition& definition, const TextPainter& pain
         case PadButton::LeftStickDown: return text("controls.stickDown");
         case PadButton::LeftStickLeft: return text("controls.stickLeft");
         case PadButton::LeftStickRight: return text("controls.stickRight");
+        case PadButton::RightStickUp: return text("controls.rightStickUp");
+        case PadButton::RightStickDown: return text("controls.rightStickDown");
+        case PadButton::RightStickLeft: return text("controls.rightStickLeft");
+        case PadButton::RightStickRight: return text("controls.rightStickRight");
         default: return std::string(padButtonName(button));
         }
     };

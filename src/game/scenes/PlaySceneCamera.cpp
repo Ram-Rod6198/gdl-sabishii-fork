@@ -1,6 +1,7 @@
 #include <algorithm>
 
 #include "engine/core/Types.h"
+#include "engine/math/PortableMath.h"
 
 #include "game/players/CursorAim.h"
 #include "game/scenes/PlayScene.h"
@@ -10,6 +11,29 @@ std::optional<Vec3> PlayScene::cursorAim(Vec2 cursor, const Vec3& position) cons
     return m_world != nullptr && m_presentedClip
                ? cursorAimDirection(cursor, *m_presentedClip, position)
                : std::nullopt;
+}
+
+f32 PlayScene::sharedMovementYaw() const {
+    if (m_world->imported() != nullptr) {
+        return simulationCamera().yaw;
+    }
+    return bossCameraOn() ? m_sim.bossCamera.yaw() : m_camera.yaw();
+}
+
+std::optional<Vec3> PlayScene::stickAim(s32 player, Vec2 stick) const {
+    if (m_world == nullptr || (stick.x == 0.0f && stick.y == 0.0f)) {
+        return std::nullopt;
+    }
+    const std::vector<f32> yaws = movementYaws(sharedMovementYaw());
+    for (usize i = 0; i < m_players.size(); ++i) {
+        if (m_players[i].actor.player() == player) {
+            MoveInput push;
+            push.direction = stick;
+            const f32 heading = PlayerActor::headingOf(push, yaws[i]);
+            return Vec3{portable::sin(heading), 0.0f, portable::cos(heading)};
+        }
+    }
+    return std::nullopt;
 }
 
 bool PlayScene::scriptedCamera() const {

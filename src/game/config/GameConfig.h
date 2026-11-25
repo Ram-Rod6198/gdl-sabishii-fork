@@ -198,7 +198,9 @@ struct PlayBindings {
 /** How the keys walk a character aimed by the mouse: Tank faces the mouse and steps
  * forward, back and sideways relative to it; Robotron walks the camera's way (W up the
  * screen, S down, A and D across) facing the way it walks, and stands still to attack or
- * throw where the mouse points. */
+ * throw where the mouse points. On a pad Tank is the console's own controls, and Robotron
+ * adds twin sticks: the left stick walks as ever, and the right stick, while pushed, turns
+ * the character its way and holds the quick attack. */
 enum class KeyboardScheme : u8 { Tank, Robotron };
 inline constexpr std::array<std::string_view, 2> kKeyboardSchemeNames{"tank", "robotron"};
 
