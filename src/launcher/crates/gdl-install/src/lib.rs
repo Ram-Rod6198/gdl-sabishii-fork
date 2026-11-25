@@ -9,6 +9,7 @@ mod compat;
 #[cfg(all(test, windows))]
 mod default_error_mode;
 mod destination;
+mod disc_check;
 mod faults;
 mod folder;
 #[cfg(test)]
@@ -39,6 +40,10 @@ pub use compat::{
 pub use destination::{
     Blocker, ComponentAttributes, DestinationError, DestinationReport, KnownFolder, Warning,
     judge_destination,
+};
+pub use disc_check::{
+    DISC_FINGERPRINTS_FORMAT, DISC_FINGERPRINTS_VERSION, DiscCheck, DiscFingerprints,
+    DiscFingerprintsError, MAX_DIFFERING_NAMED, check_disc,
 };
 pub use folder::{
     FolderError, InstallFolder, InstallLock, JOURNAL_DIR, LOCK_FILE, LockError, RECEIPT_FILE,

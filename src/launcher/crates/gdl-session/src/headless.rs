@@ -1,16 +1,17 @@
 //! The launcher's modes without a window, for the release scripts, CI and developers at a console:
 //! `--version`, `--check-payload`, which checks the runtime the launcher file carries or a runtime
 //! zip it is given, `--inspect`, which reports what a folder is to the launcher, `--check-folder`,
-//! which reports what a folder is to an install, `--extract`, which extracts a Legends
-//! expansion's tree from a dump into a new folder outside every installation, `--check-feed`,
-//! which reads the release feed once and reports its newest release for this system without
-//! downloading anything, `--update`, which plans an installation's update, or makes it, from the
-//! feed's newest release or the runtime the program's own file carries, and `--recover`, which
-//! recovers whatever jobs a crash or a kill left unfinished in an installation's folder.
-//! They run before anything builds a window, and what they print is technical text for whoever
-//! runs them, never words for players. A run is handed its arguments, its build, its own file's
-//! sections and the streams to write to, so that every mode runs inside a test as it runs in the
-//! program.
+//! which reports what a folder is to an install, `--check-disc`, which holds the files of a
+//! GameCube disc image to the fingerprints the launcher carries, `--extract`, which extracts a
+//! Legends expansion's tree from a dump into a new folder outside every installation,
+//! `--check-feed`, which reads the release feed once and reports its newest release for this
+//! system without downloading anything, `--update`, which plans an installation's update, or makes
+//! it, from the feed's newest release or the runtime the program's own file carries, and
+//! `--recover`, which recovers whatever jobs a crash or a kill left unfinished in an installation's
+//! folder. They run before anything builds a window, and what they print is technical text for
+//! whoever runs them, never words for players. A run is handed its arguments, its build, its own
+//! file's sections and the streams to write to, so that every mode runs inside a test as it runs in
+//! the program.
 
 use std::ffi::{OsStr, OsString};
 use std::fmt;
@@ -27,14 +28,16 @@ use gdl_files::{
     strip_verbatim,
 };
 use gdl_install::{
-    Access, Changes, ComponentAttributes, DestinationReport, FolderError, FolderState,
-    INSPECTION_SCHEMA, Inspection, InstallFolder, InstallationSummary, MAX_RECEIPT_LEN, Payload,
-    PayloadError, PlanSource, Probed, RECEIPT_FILE, RUNTIME_SECTION, Receipt, RecoverError,
-    Recovered, RecoveryOutcome, Relation, RetiredCopy, SPACE_MARGIN, Sections, SectionsError,
-    SourceSummary, Unrecorded, UpdateError, UpdateNotice, UpdateOutcome, UpdatePlan,
-    UpdateRecovery, UpdateRequest, UpdateSource, Updated, hand_over, hand_over_needed,
-    installed_launcher_name, is_installed_copy, judge_destination, plan_update, recover, update,
+    Access, Changes, ComponentAttributes, DestinationReport, DiscCheck, DiscFingerprints,
+    FolderError, FolderState, INSPECTION_SCHEMA, Inspection, InstallFolder, InstallationSummary,
+    MAX_RECEIPT_LEN, Payload, PayloadError, PlanSource, Probed, RECEIPT_FILE, RUNTIME_SECTION,
+    Receipt, RecoverError, Recovered, RecoveryOutcome, Relation, RetiredCopy, SPACE_MARGIN,
+    Sections, SectionsError, SourceSummary, Unrecorded, UpdateError, UpdateNotice, UpdateOutcome,
+    UpdatePlan, UpdateRecovery, UpdateRequest, UpdateSource, Updated, check_disc, hand_over,
+    hand_over_needed, installed_launcher_name, is_installed_copy, judge_destination, plan_update,
+    recover, update,
 };
+use gdl_media::GameCubeImage;
 use gdl_release::{Asset, Feed, FeedConfig, Platform, Release, ReleaseError, Scan, Version};
 use serde::Serialize;
 
@@ -57,6 +60,7 @@ pub const EXIT_USAGE: u8 = 2;
 /// The line that answers arguments the program does not take.
 const USAGE: &str = "usage: gdl-launcher-headless --check-payload [--payload <zip>] | \
                      --inspect <dir> [--json] | --check-folder <dir> [--json] | \
+                     --check-disc <image> | \
                      --extract <n64|dreamcast> <dump> --output <dir> [--strict script] | \
                      --check-feed | --update <dir> [--yes] [--offline] | --recover <dir> | \
                      --version";
@@ -72,6 +76,13 @@ const INSPECT_OPTION: &str = "--inspect";
 
 /// The mode that reports what the folder after it is to an install into it.
 const CHECK_FOLDER_OPTION: &str = "--check-folder";
+
+/// The mode that holds the files of the GameCube disc image after it to the fingerprints the
+/// launcher carries.
+const CHECK_DISC_OPTION: &str = "--check-disc";
+
+/// The code and the rule of a disc whose files are not the fingerprinted ones.
+const DISC_DIFFERS: (&str, &str) = ("dump.hashMismatch", "discFingerprint");
 
 /// The option of `--check-payload` that names a runtime zip to check in place of the launcher
 /// file's own.
@@ -111,11 +122,12 @@ const OFFLINE_OPTION: &str = "--offline";
 const RECOVER_OPTION: &str = "--recover";
 
 /// The options that choose a mode: arguments with none of them are no headless run.
-const MODE_OPTIONS: [&str; 8] = [
+const MODE_OPTIONS: [&str; 9] = [
     VERSION_OPTION,
     CHECK_PAYLOAD_OPTION,
     INSPECT_OPTION,
     CHECK_FOLDER_OPTION,
+    CHECK_DISC_OPTION,
     EXTRACT_OPTION,
     CHECK_FEED_OPTION,
     UPDATE_OPTION,
@@ -182,11 +194,11 @@ pub fn open_own_file() -> OwnFile {
 
 /// Runs the headless mode that `args`, the program's arguments after its own name, ask for, and
 /// gives back its exit code; or `None` when no argument is `--check-payload`, `--inspect`,
-/// `--check-folder`, `--extract`, `--check-feed`, `--update`, `--recover` or `--version`, which is
-/// no headless run. A mode writes its report to `out` and a refusal to `err`. Arguments that ask
-/// for a mode in a form it does not take get the usage line on `err` and [`EXIT_USAGE`]. An
-/// option's value is the argument after it, which must not be empty or begin with `--`; options
-/// may come in any order, each at most once.
+/// `--check-folder`, `--check-disc`, `--extract`, `--check-feed`, `--update`, `--recover` or
+/// `--version`, which is no headless run. A mode writes its report to `out` and a refusal to `err`.
+/// Arguments that ask for a mode in a form it does not take get the usage line on `err` and
+/// [`EXIT_USAGE`]. An option's value is the argument after it, which must not be empty or begin
+/// with `--`; options may come in any order, each at most once.
 ///
 /// - `--version` writes the build's version.
 /// - `--check-payload` checks the runtime the launcher file carries, its sections as `own` holds
@@ -212,6 +224,16 @@ pub fn open_own_file() -> OwnFile {
 ///   folder it probes; and none in a folder the launcher must not write into.
 ///   Whatever the folder holds, a judging exits [`EXIT_OK`]; one that fails is refused with the
 ///   line `error: <code> (<rule>): <detail>`, and [`EXIT_REFUSED`].
+/// - `--check-disc <image>` opens the GameCube disc image as an install opens one, held to the US
+///   disc by its header, and then reads every file an install would copy from it against the
+///   fingerprints the launcher carries for the disc's revision, as [`check_disc`] does. It writes
+///   `Verified revision <n> (<count> files)`; or, for a revision the launcher carries no
+///   fingerprints of, `Unlisted revision <n>: no fingerprints, header only`, the disc standing
+///   as its header left it; both exit [`EXIT_OK`]. A disc whose files differ is refused with the
+///   line `error: dump.hashMismatch (discFingerprint): <detail>`, the detail counting the files
+///   that differ and those the disc lacks and naming the first that differ, and [`EXIT_REFUSED`];
+///   so is an image that cannot be opened or read, with its own code and rule. Nothing but this
+///   mode holds a disc to the fingerprints: an install holds it to its header alone.
 /// - `--extract <n64|dreamcast> <dump> --output <dir>` extracts that expansion's tree from the
 ///   dump into the new folder `<dir>`, as [`extract_to_new_folder`] does, holding the dump as an
 ///   installation holds one, to the trust the launcher carries, or with `--strict script` as the
@@ -298,6 +320,7 @@ pub fn run(
         Mode::CheckPayload { zip } => check_payload(zip, build, own, out, err),
         Mode::Inspect { folder, json } => inspect(Path::new(folder), json, build, out),
         Mode::CheckFolder { folder, json } => check_folder(Path::new(folder), json, out, err),
+        Mode::CheckDisc { image } => check_disc_mode(Path::new(image), out, err),
         Mode::Extract {
             expansion,
             dump,
@@ -351,6 +374,8 @@ enum Mode<'a> {
     Inspect { folder: &'a OsStr, json: bool },
     /// `--check-folder`, of `folder`, reported as JSON when `json` says so, else as text.
     CheckFolder { folder: &'a OsStr, json: bool },
+    /// `--check-disc`, of the disc image at `image`.
+    CheckDisc { image: &'a OsStr },
     /// `--extract`, of the expansion the word `expansion` names, from the dump at `dump` into the
     /// new folder `output`, the dump held as the extraction scripts hold one when `script` says
     /// so, else as an installation holds one.
@@ -383,6 +408,8 @@ enum Chosen<'a> {
     Inspect(&'a OsStr),
     /// `--check-folder`, with the folder after it.
     CheckFolder(&'a OsStr),
+    /// `--check-disc`, with the disc image after it.
+    CheckDisc(&'a OsStr),
     /// `--extract`, with the word that names the expansion and the dump after it.
     Extract(&'a OsStr, &'a OsStr),
     /// `--check-feed`.
@@ -422,6 +449,7 @@ fn parse(args: &[OsString]) -> Result<Mode<'_>, Misused> {
             Some(CHECK_PAYLOAD_OPTION) => Chosen::CheckPayload,
             Some(INSPECT_OPTION) => Chosen::Inspect(value(&mut rest)?),
             Some(CHECK_FOLDER_OPTION) => Chosen::CheckFolder(value(&mut rest)?),
+            Some(CHECK_DISC_OPTION) => Chosen::CheckDisc(value(&mut rest)?),
             Some(EXTRACT_OPTION) => Chosen::Extract(value(&mut rest)?, value(&mut rest)?),
             Some(CHECK_FEED_OPTION) => Chosen::CheckFeed,
             Some(UPDATE_OPTION) => Chosen::Update(value(&mut rest)?),
@@ -471,6 +499,9 @@ fn parse(args: &[OsString]) -> Result<Mode<'_>, Misused> {
         }
         (Some(Chosen::CheckFolder(folder)), None, json, (None, false), (false, false)) => {
             Ok(Mode::CheckFolder { folder, json })
+        }
+        (Some(Chosen::CheckDisc(image)), None, false, (None, false), (false, false)) => {
+            Ok(Mode::CheckDisc { image })
         }
         (
             Some(Chosen::Extract(expansion, dump)),
@@ -646,6 +677,49 @@ fn json_report(view: &impl Serialize) -> String {
     let mut text = serde_json::to_string_pretty(view).expect("a report's fields are all JSON");
     text.push('\n');
     text
+}
+
+/// `--check-disc`: opens the disc image at `image` as an install opens one and holds its files to
+/// the fingerprints the launcher carries, and reports it verified or unlisted to `out`, or
+/// refused to `err`.
+fn check_disc_mode(image: &Path, out: &mut dyn Write, err: &mut dyn Write) -> u8 {
+    // Nothing here asks the check to stop, and nobody follows its progress.
+    let cancel = Cancel::default();
+    let job = Job {
+        cancel: &cancel,
+        progress: &NoProgress,
+    };
+    let checked = GameCubeImage::open(image)
+        .and_then(|mut image| check_disc(&mut image, &DiscFingerprints::committed(), &job));
+    match checked {
+        Ok(DiscCheck::Verified { revision, files }) => reported(
+            out,
+            &format!("Verified revision {revision} ({files} files)\n"),
+        ),
+        Ok(DiscCheck::Unlisted { revision }) => reported(
+            out,
+            &format!("Unlisted revision {revision}: no fingerprints, header only\n"),
+        ),
+        Ok(DiscCheck::Differs {
+            revision,
+            named,
+            differing,
+            missing,
+        }) => {
+            let detail = format!(
+                "revision {revision}: {differing} files differ from the fingerprinted disc and \
+                 {missing} are missing; first differing: {}",
+                if named.is_empty() {
+                    NOWHERE.to_owned()
+                } else {
+                    named.join(LIST_SEPARATOR)
+                }
+            );
+            let (code, rule) = DISC_DIFFERS;
+            refuse(err, Report::Error(code), rule, &detail)
+        }
+        Err(error) => refuse(err, codes::media(&error), error.rule(), &error),
+    }
 }
 
 /// `--extract`: extracts the expansion `word` names from the dump at `dump` into the new folder
@@ -2508,9 +2582,9 @@ mod tests {
         assert_eq!(
             USAGE,
             "usage: gdl-launcher-headless --check-payload [--payload <zip>] | --inspect <dir> \
-             [--json] | --check-folder <dir> [--json] | --extract <n64|dreamcast> <dump> \
-             --output <dir> [--strict script] | --check-feed | --update <dir> [--yes] \
-             [--offline] | --recover <dir> | --version"
+             [--json] | --check-folder <dir> [--json] | --check-disc <image> | --extract \
+             <n64|dreamcast> <dump> --output <dir> [--strict script] | --check-feed | --update \
+             <dir> [--yes] [--offline] | --recover <dir> | --version"
         );
     }
 
@@ -4003,6 +4077,76 @@ mod tests {
                 colliding.join(", ")
             )],
         );
+    }
+
+    #[test]
+    fn check_disc_holds_a_disc_to_the_carried_fingerprints() {
+        let dir = tempfile::tempdir().unwrap();
+        // The synthetic disc is of a revision the launcher carries fingerprints of, and its
+        // files are not the game's.
+        let mut iso = gdl_fixtures::synthetic_iso();
+        let differing = dir.path().join("differing.iso");
+        fs::write(&differing, &iso).unwrap();
+        let ran = run_release(&[OsStr::new("--check-disc"), differing.as_os_str()]);
+        assert_eq!(ran.code, Some(EXIT_REFUSED));
+        assert_eq!(ran.out, "");
+        let prefix = "error: dump.hashMismatch (discFingerprint): revision 1: ";
+        assert!(ran.err.starts_with(prefix), "{}", ran.err);
+        assert!(
+            ran.err.contains("first differing: Gauntlet/"),
+            "{}",
+            ran.err
+        );
+        assert_eq!(ran.err.lines().count(), 1);
+
+        // The same disc as the revision no fingerprints are carried of stands by its header.
+        const REVISION_AT: usize = 7;
+        iso[REVISION_AT] = 0;
+        let unlisted = dir.path().join("unlisted.iso");
+        fs::write(&unlisted, &iso).unwrap();
+        let ran = run_release(&[OsStr::new("--check-disc"), unlisted.as_os_str()]);
+        assert_eq!(ran.code, Some(EXIT_OK));
+        assert_eq!(
+            ran.out,
+            "Unlisted revision 0: no fingerprints, header only\n"
+        );
+        assert_eq!(ran.err, "");
+
+        // An image an install would not open is refused as the install refuses it.
+        let other = dir.path().join("other.iso");
+        fs::write(&other, vec![0; iso.len()]).unwrap();
+        let ran = run_release(&[OsStr::new("--check-disc"), other.as_os_str()]);
+        assert_eq!(ran.code, Some(EXIT_REFUSED));
+        assert_eq!(ran.out, "");
+        assert!(
+            ran.err
+                .starts_with("error: source.unrecognized (notGameCube): "),
+            "{}",
+            ran.err
+        );
+    }
+
+    #[test]
+    fn check_disc_misuse_is_a_usage_error() {
+        let cases: &[(&[&str], &str)] = &[
+            (&["--check-disc"], "--check-disc without an image"),
+            (&["--check-disc", ""], "--check-disc with an empty image"),
+            (
+                &["--check-disc", "--json"],
+                "--check-disc followed by an option",
+            ),
+            (
+                &["--check-disc", "game.iso", "--json"],
+                "--json, which it does not take",
+            ),
+            (&["--check-disc", "game.iso", "other.iso"], "a second image"),
+            (&["--check-disc", "game.iso", "--version"], "two modes"),
+        ];
+        for (args, what) in cases {
+            let ran = run_release(args);
+            assert_eq!(ran.code, Some(EXIT_USAGE), "{what}");
+            assert_eq!(ran.out, "", "{what}");
+        }
     }
 
     #[test]
