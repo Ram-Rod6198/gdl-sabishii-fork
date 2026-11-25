@@ -101,6 +101,15 @@ void AfterLevelScene::drawLaneBackdrop(const ShopLane& lane) {
         // Growth follows height rank, but equal-depth sprites retain their creation
         // order: gold, bones, experience. Earnings must not change layering.
         const auto& order = lane.tally.order();
+        if (m_services != nullptr && m_services->config != nullptr &&
+            m_services->config->display.tallyPilesBySize) {
+            // Asked for instead: in the order they grow, tallest first, so that each
+            // shorter pile stands in front of the ones it would otherwise hide behind.
+            for (usize rank = 0; rank < order.size() && rank <= lane.tally.growingRank(); ++rank) {
+                drawPile(order[rank], x, lane.tally.height(order[rank]));
+            }
+            return;
+        }
         for (usize pile = 0; pile < order.size(); ++pile) {
             const auto rank = static_cast<usize>(std::ranges::find(order, pile) - order.begin());
             if (rank <= lane.tally.growingRank()) {

@@ -1034,6 +1034,82 @@ TEST_CASE("mouse continues through tally exit stats inventory and final stats wi
     REQUIRE(scene.session().lanes()[1].phase == ShopPhase::FinalStats);
 }
 
+TEST_CASE("tallyPilesBySize layers the tally's piles tallest first, and only when asked",
+          "[shop][screens][assets]") {
+    const auto root = test::assetOrSkip("SHPDATA/SHOP.WAD").parent_path().parent_path();
+    test::assetOrSkip("SELECT/textures.ngc");
+    test::assetOrSkip("INVENTORY/textures.ngc");
+    test::assetOrSkip("PDATA/WAR.WAD");
+    test::FakeRenderDevice device;
+    StringTable strings;
+    REQUIRE(strings.load(test::dataDirectory() / "text", "en"));
+    GameConfig config;
+    REQUIRE_FALSE(config.display.tallyPilesBySize);
+    GameServices context;
+    context.unpackedRoot = root;
+    context.strings = &strings;
+    context.config = &config;
+    TextureSet art;
+    REQUIRE(art.load(root / "SELECT"));
+    // The first draw of each pile's art, in submission order: later is in front.
+    const auto pileOrder = [&] {
+        std::vector<std::string_view> order;
+        for (const auto& draw : device.draws) {
+            const auto* image = dynamic_cast<const test::FakeTexture*>(draw.texture);
+            for (const std::string_view name : {"SHP_GOLD", "SHP_BONES", "SHP_EXP"}) {
+                const auto id = art.find(name);
+                REQUIRE(id.has_value());
+                if (image != nullptr && image->pixels == art.image(*id).pixels) {
+                    order.push_back(name);
+                }
+            }
+        }
+        return order;
+    };
+    using Order = std::vector<std::string_view>;
+    struct Case {
+        std::array<s32, 3> totals; ///< gold, kills, experience, each against a maximum of 1000
+        Order grown;               ///< tallest first
+    };
+    const auto [totals, grown] =
+        GENERATE(Case{{500, 400, 900}, {"SHP_EXP", "SHP_GOLD", "SHP_BONES"}},
+                 Case{{900, 400, 500}, {"SHP_GOLD", "SHP_EXP", "SHP_BONES"}},
+                 Case{{400, 900, 500}, {"SHP_BONES", "SHP_EXP", "SHP_GOLD"}},
+                 // Equal piles keep the growth order's tie rule.
+                 Case{{500, 500, 500}, {"SHP_GOLD", "SHP_EXP", "SHP_BONES"}});
+    CAPTURE(totals);
+    CharacterSave save;
+    save.name = "PILE";
+    save.progress().health = 100;
+    const std::array<PartyMember, 1> party{{{2, save}}};
+    const std::array<LevelResults, 1> results{{{2, totals}}};
+    const Mat4 projection{1};
+    AfterLevelScene scene;
+    const auto render = [&] {
+        device.draws.clear();
+        scene.render(device, projection, 512, 384);
+        return pileOrder();
+    };
+
+    // Off, the console's creation order stands whatever was earned.
+    REQUIRE(scene.open(device, context, party, results, {1000, 1000, 1000}, "G1"));
+    REQUIRE_FALSE(scene.update(10, {}));
+    CHECK(render() == Order{"SHP_GOLD", "SHP_BONES", "SHP_EXP"});
+
+    config.display.tallyPilesBySize = true;
+    REQUIRE(scene.open(device, context, party, results, {1000, 1000, 1000}, "G1"));
+    // Only the pile that is growing shows at first, as before.
+    CHECK(render() == Order{grown.front()});
+    REQUIRE_FALSE(scene.update(10, {}));
+    CHECK(render() == grown);
+    // The shop that follows keeps its one gold pile.
+    ShopSession::Inputs input;
+    input[2].select = true;
+    REQUIRE_FALSE(scene.update(0, input));
+    REQUIRE(scene.session().lanes()[0].phase == ShopPhase::Shopping);
+    CHECK(render() == Order{"SHP_GOLD"});
+}
+
 TEST_CASE("after-level screen renders every phase with retail assets", "[shop][screens][assets]") {
     const auto root = test::assetOrSkip("SHPDATA/SHOP.WAD").parent_path().parent_path();
     test::assetOrSkip("SELECT/textures.ngc");

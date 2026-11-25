@@ -13,6 +13,7 @@
     "bloom": false,
     "ambientOcclusion": false,
     "smoothSprites": false,
+    "tallyPilesBySize": false,
     "maxFrameRate": 30,
     "sampleCount": 1,
     "textureFiltering": 8,

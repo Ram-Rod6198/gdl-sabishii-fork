@@ -40,6 +40,10 @@ struct DisplayConfig {
     /** Cut a generator's lava pool to the silhouette its artists drew but shipped without
      * colours; off shows the pool's whole square, as the console did. */
     bool authoredSilhouettes = true;
+    /** Draw the level tally's three piles tallest first, so a shorter one always stands in
+     * front; off keeps the console's fixed order (gold, kills, experience on top), where the
+     * tallest of the later ones hides the rest. */
+    bool tallyPilesBySize = false;
     /** The play HUD's look, by id. One no installed expansion offers is kept and drawn as
      * Dark Legacy's. */
     std::string hudStyle{kDarkLegacyHudStyle};

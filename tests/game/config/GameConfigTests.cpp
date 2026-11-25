@@ -256,6 +256,7 @@ TEST_CASE("graphics settings round-trip with thirty fps presentation defaults",
     CHECK_FALSE(config.display.ambientOcclusion);
     CHECK_FALSE(config.display.smoothSprites);
     CHECK(config.display.authoredSilhouettes);
+    CHECK_FALSE(config.display.tallyPilesBySize);
     CHECK(config.display.maxFrameRate == 30);
     CHECK(config.timing.gameplayFrameRate == 30);
     for (const u32 samples : {1U, 2U, 4U}) {
@@ -267,6 +268,7 @@ TEST_CASE("graphics settings round-trip with thirty fps presentation defaults",
             config.display.ambientOcclusion = rate == 30;
             config.display.smoothSprites = rate == 0;
             config.display.authoredSilhouettes = samples == 2;
+            config.display.tallyPilesBySize = samples == 4;
             config.display.maxFrameRate = rate;
             config.timing.gameplayFrameRate = rate;
             GameConfig restored;
@@ -808,6 +810,7 @@ constexpr std::string_view kDefaultSettingsFile = R"json({
     "renderer": "vulkan",
     "sampleCount": 1,
     "smoothSprites": false,
+    "tallyPilesBySize": false,
     "textureFiltering": 8,
     "virtualHeight": 384,
     "virtualWidth": 512,
@@ -1279,6 +1282,7 @@ constexpr std::string_view kChangedSettingsFile = R"json({
     "renderer": "opengl",
     "sampleCount": 4,
     "smoothSprites": true,
+    "tallyPilesBySize": true,
     "textureFiltering": 16,
     "virtualHeight": 480,
     "virtualWidth": 640,
@@ -1339,6 +1343,7 @@ GameConfig awayFromDefaults() {
     display.ambientOcclusion = true;
     display.smoothSprites = true;
     display.authoredSilhouettes = false;
+    display.tallyPilesBySize = true;
     display.hudStyle = "fake";
     display.sampleCount = 4;
     display.textureFiltering = 16;
