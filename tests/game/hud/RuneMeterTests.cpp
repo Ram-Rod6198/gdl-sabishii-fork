@@ -38,6 +38,39 @@ TEST_CASE("runestone finder is earned, with any stone owner overriding permissio
     CHECK_FALSE(RuneMeter::eligible(1, 7, {}));
 }
 
+TEST_CASE("the finder asked for on every level shows unearned, and for a stone already held",
+          "[rune-meter]") {
+    std::array<PartyMember, 2> party{};
+    RuneMeter meter;
+    meter.begin(0, Vec3{0}, Vec3{100, 0, 0}, 7, party);
+    CHECK_FALSE(meter.visible()); // not earned
+    meter.begin(0, Vec3{0}, Vec3{100, 0, 0}, 7, party, true);
+    CHECK(meter.visible());
+    party[1].save.progress().relics.addShard(9);
+    party[0].save.progress().relics.addRune(0);
+    meter.begin(0, Vec3{0}, Vec3{100, 0, 0}, 7, party);
+    CHECK_FALSE(meter.visible()); // a stone the party holds
+    meter.begin(0, Vec3{0}, Vec3{100, 0, 0}, 7, party, true);
+    REQUIRE(meter.visible());
+    // It reads and speaks as the earned finder does, and still goes with the stone.
+    CHECK(meter.update(Vec3{100, 0, 0}, true) == RuneMeter::Cue::None);
+    CHECK(meter.fill() == 0);
+    CHECK(meter.update(Vec3{16, 0, 0}, true) == RuneMeter::Cue::Closer);
+    CHECK(meter.update(Vec3{8, 0, 0}, true) == RuneMeter::Cue::Nearby);
+    CHECK(meter.fill() == 1);
+    CHECK(meter.update(Vec3{0}, false) == RuneMeter::Cue::None);
+    CHECK_FALSE(meter.visible());
+    // Only the game's own runestones, on a level with a size.
+    CHECK(RuneMeter::known(0));
+    CHECK(RuneMeter::known(12));
+    CHECK_FALSE(RuneMeter::known(-1));
+    CHECK_FALSE(RuneMeter::known(13));
+    meter.begin(13, Vec3{0}, Vec3{100, 0, 0}, 7, party, true);
+    CHECK_FALSE(meter.visible());
+    meter.begin(0, Vec3{0}, Vec3{0}, 7, party, true);
+    CHECK_FALSE(meter.visible());
+}
+
 TEST_CASE("runestone proximity measures the camera point and emits each line once",
           "[rune-meter]") {
     std::array<PartyMember, 1> party{};

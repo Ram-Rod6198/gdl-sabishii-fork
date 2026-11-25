@@ -71,6 +71,19 @@ TEST_CASE("the defaults describe the original's screen and clock", "[game][confi
     REQUIRE(config.menu.padStart.front() == PadButton::Start);
 }
 
+TEST_CASE("the runestone finder shows everywhere only when asked to", "[game][config]") {
+    GameConfig config;
+    CHECK_FALSE(config.game.alwaysRuneFinder);
+    REQUIRE(config.loadFile(test::dataDirectory() / "config.json"));
+    CHECK_FALSE(config.game.alwaysRuneFinder);
+    config.mergeJson(R"({"game":{"alwaysRuneFinder":true}})");
+    CHECK(config.game.alwaysRuneFinder);
+    CHECK_FALSE(config.game.autoSave);
+    GameConfig restored;
+    restored.mergeJson(config.toJson());
+    CHECK(restored.game.alwaysRuneFinder);
+}
+
 TEST_CASE("expanded shop and autosave are independent opt-in settings", "[game][config]") {
     GameConfig config;
     CHECK_FALSE(config.game.expandedShop);
@@ -817,6 +830,7 @@ constexpr std::string_view kDefaultSettingsFile = R"json({
     "windowWidth": 1280
   },
   "game": {
+    "alwaysRuneFinder": false,
     "autoSave": false,
     "combat": {
       "autoActivateItems": true,
@@ -1288,6 +1302,7 @@ constexpr std::string_view kChangedSettingsFile = R"json({
     "windowWidth": 1920
   },
   "game": {
+    "alwaysRuneFinder": false,
     "autoSave": true,
     "combat": {
       "autoActivateItems": false,

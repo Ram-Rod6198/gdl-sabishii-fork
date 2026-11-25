@@ -25,8 +25,10 @@ public:
     bool operator==(const RuneMeter&) const = default;
 
     enum class Cue : u8 { None, Closer, Nearby };
+    /** `always` shows the finder for any of the game's runestones, earned or not and held or
+     * not: the Always Show Rune Finder setting. */
     void begin(s32 rune, const Vec3& position, const Vec3& worldSize, s32 realm,
-               std::span<const PartyMember> party);
+               std::span<const PartyMember> party, bool always = false);
     void clear();
     /** A missing/collected stone hides the finder for the rest of this visit. Cues are
      * consumed even when narration is busy, exactly as the original's two flags are. */
@@ -40,6 +42,8 @@ public:
     static void drawFill(Canvas& canvas, const Texture& frame, const Texture& fillTexture,
                          f32 fill);
     static bool eligible(s32 rune, s32 realm, std::span<const PartyMember> party);
+    /** Whether `rune` is one of the game's runestones. */
+    static bool known(s32 rune);
     static f32 closeness(f32 distance, f32 worldDiagonal);
     struct Column {
         Rect area;

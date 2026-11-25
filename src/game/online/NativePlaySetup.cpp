@@ -93,6 +93,8 @@ std::unique_ptr<NativePlaySetup> NativePlaySetup::create(const GameConfig& local
     result->m_config.combat.autoMelee = contract.autoMelee;
     result->m_config.combat.autoActivateItems = contract.autoActivateItems;
     result->m_config.game.expandedShop = contract.expandedShop;
+    // The finder is simulation state and this setting is no room rule: online, the original's.
+    result->m_config.game.alwaysRuneFinder = false;
     result->m_config.combat.autoAim = contract.autoAim;
     result->m_options = options;
     result->m_scene = contract.scene;

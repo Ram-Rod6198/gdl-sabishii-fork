@@ -104,6 +104,9 @@ struct CombatConfig {
 struct GameOptionsConfig {
     bool expandedShop = false;
     bool autoSave = false;
+    /** The runestone finder shows on every level that holds a runestone, earned or not and
+     * whether or not the party has the stone already; off, it shows as the original's does. */
+    bool alwaysRuneFinder = false;
     /** The additive mechanics switched on or off, by `MechanicDescriptor::id`; one unsaid is
      * off. Kept whole, so a build without a mechanic still keeps a player's choice for it. */
     std::map<std::string, bool, std::less<>> mechanics;

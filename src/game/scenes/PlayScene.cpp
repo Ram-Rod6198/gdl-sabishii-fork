@@ -177,9 +177,10 @@ bool PlayScene::open(RenderDevice& device, const GameServices& services, LevelWo
             const auto& item = items.item(i);
             if (item.subtype == ItemInfo::kRunestone && !item.taken && item.shownTo(partySize)) {
                 m_sim.runeItem = i;
-                m_sim.runeMeter.begin(item.value, item.position,
-                                      world.layout().maxBounds() - world.layout().minBounds(),
-                                      world.ref().realmId, party);
+                m_sim.runeMeter.begin(
+                    item.value, item.position,
+                    world.layout().maxBounds() - world.layout().minBounds(), world.ref().realmId,
+                    party, services.config != nullptr && services.config->game.alwaysRuneFinder);
             }
         }
         if (m_sim.runeMeter.visible()) {

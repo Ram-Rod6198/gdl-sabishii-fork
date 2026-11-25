@@ -7,8 +7,12 @@
 
 namespace gdl::game {
 
+bool RuneMeter::known(s32 rune) {
+    return rune >= 0 && rune < Relics::kRuneCount;
+}
+
 bool RuneMeter::eligible(s32 rune, s32 realm, std::span<const PartyMember> party) {
-    if (rune < 0 || rune >= Relics::kRuneCount) {
+    if (!known(rune)) {
         return false;
     }
     constexpr s32 kTemple = 5;
@@ -27,11 +31,12 @@ bool RuneMeter::eligible(s32 rune, s32 realm, std::span<const PartyMember> party
 }
 
 void RuneMeter::begin(s32 rune, const Vec3& position, const Vec3& worldSize, s32 realm,
-                      std::span<const PartyMember> party) {
+                      std::span<const PartyMember> party, bool always) {
     clear();
     m_position = position;
     m_diagonal = glm::length(worldSize);
-    m_visible = eligible(rune, realm, party) && std::isfinite(m_diagonal) && m_diagonal > 0;
+    m_visible = (always ? known(rune) : eligible(rune, realm, party)) &&
+                std::isfinite(m_diagonal) && m_diagonal > 0;
 }
 
 void RuneMeter::clear() {

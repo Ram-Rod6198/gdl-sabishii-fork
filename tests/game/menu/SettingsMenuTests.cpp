@@ -82,7 +82,7 @@ TEST_CASE("Game Options exposes optional shop stock and autosaving", "[settings]
     Fixture f;
     f.choose(1);
     REQUIRE(f.menu.page() == SettingsMenu::Page::Game);
-    REQUIRE(f.menu.menu().definition().items.size() == 6);
+    REQUIRE(f.menu.menu().definition().items.size() == 7);
     CHECK(f.menu.menu().definition().items.front().text == "Difficulty");
     CHECK(f.menu.menu().definition().items.back().text == "Language");
     CHECK(f.menu.menu().definition().items.back().value == "English");
@@ -100,6 +100,28 @@ TEST_CASE("Game Options exposes optional shop stock and autosaving", "[settings]
     CHECK(f.settings.writes == 2);
 }
 
+TEST_CASE("Game Options offers the runestone finder on every level, off until asked for",
+          "[settings][rune-meter]") {
+    Fixture f;
+    f.choose(1);
+    REQUIRE(f.menu.page() == SettingsMenu::Page::Game);
+    const auto& items = f.menu.menu().definition().items;
+    REQUIRE(items.size() == 7);
+    CHECK(items[5].text == "Always Show Rune Finder");
+    CHECK(items[5].value == "Off");
+    CHECK_FALSE(f.config.game.alwaysRuneFinder);
+    f.choose(items[5].code);
+    CHECK(f.config.game.alwaysRuneFinder);
+    CHECK(f.menu.menu().definition().items[5].value == "On");
+    CHECK_FALSE(f.config.game.expandedShop);
+    CHECK_FALSE(f.config.game.autoSave);
+    f.release();
+    f.focus(f.menu.menu().definition().items[5].code);
+    f.right();
+    CHECK_FALSE(f.config.game.alwaysRuneFinder);
+    CHECK(f.settings.writes == 2);
+}
+
 TEST_CASE("Game Options switches each mechanic the build carries, after its own switches",
           "[settings][mechanics]") {
     MechanicCatalog mechanics;
@@ -109,17 +131,17 @@ TEST_CASE("Game Options switches each mechanic the build carries, after its own 
     f.choose(1);
     REQUIRE(f.menu.page() == SettingsMenu::Page::Game);
     const auto& items = f.menu.menu().definition().items;
-    REQUIRE(items.size() == 8);
-    CHECK(items[5].text == "calm"); // by id, each named by its own text
-    CHECK(items[6].text == "rage");
+    REQUIRE(items.size() == 9);
+    CHECK(items[6].text == "calm"); // by id, each named by its own text
+    CHECK(items[7].text == "rage");
     CHECK(items.back().text == "Language");
     CHECK_FALSE(MechanicCatalog::enabled(f.config.game, "rage"));
-    f.focus(items[6].code);
+    f.focus(items[7].code);
     f.right();
     CHECK(MechanicCatalog::enabled(f.config.game, "rage"));
     CHECK_FALSE(MechanicCatalog::enabled(f.config.game, "calm"));
     f.release();
-    f.focus(f.menu.menu().definition().items[6].code);
+    f.focus(f.menu.menu().definition().items[7].code);
     f.right();
     CHECK_FALSE(MechanicCatalog::enabled(f.config.game, "rage"));
     CHECK(f.settings.writes == 2);

@@ -19,6 +19,7 @@ namespace {
 constexpr s32 kGraphicsCode = 4;
 constexpr s32 kHudCode = 5; ///< the root's row that opens the HUD page
 constexpr s32 kLanguageCode = 5;
+constexpr s32 kAlwaysRuneFinderCode = 6; ///< a Game page switch added after the language row
 constexpr s32 kFirstMechanicCode = 16; ///< the Game page's mechanics, one code each in order
 constexpr s32 kDisplayCode = 13;
 constexpr s32 kRendererCode = 14;
@@ -129,9 +130,10 @@ template <class Config> struct Switch {
     std::string_view label;
     bool Config::*field = nullptr;
 };
-constexpr std::array<Switch<GameOptionsConfig>, 2> kGameSwitches{
+constexpr std::array<Switch<GameOptionsConfig>, 3> kGameSwitches{
     {{3, "settings.expandedShop", &GameOptionsConfig::expandedShop},
-     {4, "settings.autoSave", &GameOptionsConfig::autoSave}}};
+     {4, "settings.autoSave", &GameOptionsConfig::autoSave},
+     {kAlwaysRuneFinderCode, "settings.alwaysRuneFinder", &GameOptionsConfig::alwaysRuneFinder}}};
 constexpr std::array<Switch<CombatConfig>, 4> kCombatSwitches{
     {{0, "settings.autoMelee", &CombatConfig::autoMelee},
      {1, "settings.enemyHealthBars", &CombatConfig::enemyHealthBars},
