@@ -236,6 +236,8 @@ bool PlayScene::open(RenderDevice& device, const GameServices& services, LevelWo
         runtime.figure = PlayerFigure::load(device, m_services->unpackedRoot, runtime.actor.save(),
                                             Entrance::Play, size);
         if (runtime.figure != nullptr) {
+            runtime.figure->setPhoenixBesidePojo(m_services->config != nullptr &&
+                                                 m_services->config->combat.phoenixBesidePojo);
             runtime.figure->setCompanionPowerups(
                 device, world.powerups(), runtime.actor.save().progress().inventory, &m_weapons);
         }
@@ -1634,6 +1636,9 @@ void PlayScene::advancePowerupsAndWorld(s32 ticks, f32 seconds, bool held) {
             const auto* stats = m_classes.stats(player.actor.save().character);
             player.figure->setGuardArmor(
                 stats != nullptr ? armorDefense(*stats, player.actor.save()) : 0.0f);
+            // A promotion's new figure and a switch flipped mid-level both land here.
+            player.figure->setPhoenixBesidePojo(m_services->config != nullptr &&
+                                                m_services->config->combat.phoenixBesidePojo);
             player.figure->setCompanionPowerups(*m_device, m_world->powerups(),
                                                 player.actor.save().progress().inventory,
                                                 &m_weapons);

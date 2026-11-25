@@ -110,9 +110,11 @@ TEST_CASE("combat is opt-in and movie volume persists independently of other aud
     CHECK(config.combat.enemyHealthBars);
     CHECK(config.combat.autoActivateItems);
     CHECK(config.combat.autoAim);
+    CHECK_FALSE(config.combat.phoenixBesidePojo);
     CHECK(config.audio.movieVolume == 1.0f);
     REQUIRE(config.loadFile(test::dataDirectory() / "config.json"));
     CHECK_FALSE(config.combat.autoMelee);
+    CHECK_FALSE(config.combat.phoenixBesidePojo);
     CHECK(config.audio.movieVolume == 1.0f);
     config.mergeJson(R"({"game":{"difficulty":"hard"},"audio":{"musicVolume":0.25}})");
     CHECK_FALSE(config.combat.autoMelee); // old settings keep the new feature off
@@ -122,9 +124,11 @@ TEST_CASE("combat is opt-in and movie volume persists independently of other aud
     CHECK(config.combat.autoActivateItems);
     config.mergeJson(R"({"game":{"combat":{"enemyHealthBars":false,"autoActivateItems":false}}})");
     CHECK(config.combat.autoAim); // old settings keep aiming on, as the game always did
-    config.mergeJson(R"({"game":{"combat":{"autoAim":false}}})");
+    CHECK_FALSE(config.combat.phoenixBesidePojo); // old settings keep the Phoenix hidden
+    config.mergeJson(R"({"game":{"combat":{"autoAim":false,"phoenixBesidePojo":true}}})");
     GameConfig restored;
     restored.mergeJson(config.toJson());
+    CHECK(restored.combat.phoenixBesidePojo);
     CHECK(restored.combat.autoMelee);
     CHECK_FALSE(restored.combat.autoAim);
     CHECK_FALSE(restored.combat.enemyHealthBars);
@@ -822,7 +826,8 @@ constexpr std::string_view kDefaultSettingsFile = R"json({
       "autoActivateItems": true,
       "autoAim": true,
       "autoMelee": false,
-      "enemyHealthBars": true
+      "enemyHealthBars": true,
+      "phoenixBesidePojo": false
     },
     "difficulty": "normal",
     "expandedShop": false,
@@ -1293,7 +1298,8 @@ constexpr std::string_view kChangedSettingsFile = R"json({
       "autoActivateItems": false,
       "autoAim": false,
       "autoMelee": true,
-      "enemyHealthBars": false
+      "enemyHealthBars": false,
+      "phoenixBesidePojo": true
     },
     "difficulty": "bogus",
     "expandedShop": true,
@@ -1362,6 +1368,7 @@ GameConfig awayFromDefaults() {
     config.combat.enemyHealthBars = false;
     config.combat.autoActivateItems = false;
     config.combat.autoAim = false;
+    config.combat.phoenixBesidePojo = true;
     config.game.expandedShop = true;
     config.game.autoSave = true;
     config.game.mechanics = {{"calm", false}, {"rage", true}};

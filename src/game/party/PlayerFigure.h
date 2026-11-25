@@ -79,9 +79,11 @@ public:
         friend class PlayerFigure;
         ActionState m_actions;
         PowerupCompanion::LocalSnapshot m_companion;
+        PowerupCompanion::LocalSnapshot m_besidePojo;
         PlayerFamiliar::LocalSnapshot m_familiar;
         TextureAnimator::Clock m_costumeTextures;
         f32 m_companionAlpha = 1;
+        f32 m_besidePojoAlpha = 1;
         std::weak_ptr<const u8> m_owner;
     };
     void saveLocal(LocalSnapshot& state) const;
@@ -199,8 +201,16 @@ public:
         return glm::translate(body, Vec3{m_phoenixSide, 0, 0});
     }
     const PowerupCompanion& companion() const { return m_companion; }
-    /** Slot zero is earned, slot one is a timed powerup; both can be visible. */
-    std::array<std::optional<CompanionVisual>, 2> companionVisuals(const Mat4& body,
+    /** The phoenix kept while Pojo holds the powerup's place; dormant otherwise. It is
+     * kept and animated whether or not it is drawn, so players who differ in
+     * setPhoenixBesidePojo still agree on the figure's state. */
+    const PowerupCompanion& besidePojo() const { return m_besidePojo; }
+    /** Whether that phoenix is drawn (the Phoenix With Pojo option); the original hides it.
+     * Presentation only: it changes no shot and no captured state. */
+    void setPhoenixBesidePojo(bool drawn) { m_besidePojoDrawn = drawn; }
+    /** Slot zero is earned, slot one is a timed powerup, slot two the phoenix beside Pojo
+     * when that is drawn; all can be visible. */
+    std::array<std::optional<CompanionVisual>, 3> companionVisuals(const Mat4& body,
                                                                    f32 alpha) const;
     bool familiarReleased() const { return m_action.familiarReleased; }
     const TreeModel& familiarMissile() const { return m_familiarMissile; }
@@ -314,8 +324,13 @@ private:
     std::string m_effectResourceKey;
     PlayerFamiliar m_familiar;
     PowerupCompanion m_companion;
+    /** PlayerProcessPowerups gives Pojo the one familiar_tree, yet PlayerMotion still
+     * launches the phoenix's fire (flags 0x80). This is what is firing, drawn when asked. */
+    PowerupCompanion m_besidePojo;
+    bool m_besidePojoDrawn = false;
     WeaponTrail m_trail;
     f32 m_companionAlpha = 1;
+    f32 m_besidePojoAlpha = 1;
     s32 m_backNode = -1; ///< what wings hang from: the root's first child's first child
     TreeModel m_familiarMissile;
     TreeModel m_missile;

@@ -98,6 +98,9 @@ struct CombatConfig {
     /** Release-time targeting of shots and the familiar's spit, and the standing attack's
      * turn toward the target: the original's per-pad Auto Aim control option. */
     bool autoAim = true;
+    /** Draw the Phoenix beside a character in Pojo's form, whose fireballs otherwise come
+     * from nowhere; off hides it, as the original does. Each player's own: it changes no shot. */
+    bool phoenixBesidePojo = false;
 };
 
 // NOLINTNEXTLINE(bugprone-exception-escape): the map's move is not noexcept on every library

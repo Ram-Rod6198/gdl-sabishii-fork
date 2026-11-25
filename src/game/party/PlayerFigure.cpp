@@ -461,6 +461,7 @@ void PlayerFigure::animate(f32 stickMagnitude, s32 ticks, f32 seconds, PlayerDee
          deedHas(m_action.animator.itemReleased(), deed_trait::kGauntlet));
     // Ranged releases animate both firing familiars.
     m_companion.update(seconds, lastAction, peck, phoenix && m_action.familiarPending);
+    m_besidePojo.update(seconds, lastAction, false, m_action.familiarPending);
     m_familiar.update(seconds, m_action.familiarPending);
     m_action.transforms.resize(m_costume->nodes.size());
     for (usize n = 0; n < m_action.transforms.size(); ++n) {
@@ -479,6 +480,7 @@ void PlayerFigure::animateDeparture(f32 seconds) {
     m_action.familiarReleased = false;
     m_action.animator.advancePresentation(seconds);
     m_companion.update(seconds, m_action.animator.action(), false, false);
+    m_besidePojo.update(seconds, m_action.animator.action(), false, false);
     m_familiar.update(seconds, false);
     if (m_costume && m_action.animator.bound()) {
         m_action.transforms.resize(m_costume->nodes.size());
@@ -492,6 +494,7 @@ void PlayerFigure::capturePresentation() {
     m_costumeTextures.advance(0);
     m_familiar.capturePresentation();
     m_companion.capturePresentation();
+    m_besidePojo.capturePresentation();
 }
 
 void PlayerFigure::updateTrail(const Mat4& body, s32 ticks) {
@@ -508,20 +511,26 @@ void PlayerFigure::updateTrail(const Mat4& body, s32 ticks) {
 void PlayerFigure::setCompanionPowerups(RenderDevice& device, ItemArchive& powerups,
                                         const Inventory& inventory, ItemArchive* weapons) {
     const bool shieldRunning = m_action.animator.action() == PlayerAnimator::Action::ShieldRun;
-    m_companion.choose(device,
-                       PowerupCompanion::choose(PowerupEffects::of(inventory), shieldRunning),
-                       powerups, weapons);
+    const auto worn = PowerupEffects::of(inventory);
+    m_companion.choose(device, PowerupCompanion::choose(worn, shieldRunning), powerups, weapons);
+    m_besidePojo.choose(device, PowerupCompanion::beside(worn), powerups, weapons);
     m_companionAlpha = inventory.permanentPojo ? 1.0f : PowerupCompanion::fadeOf(inventory);
+    m_besidePojoAlpha = PowerupCompanion::phoenixFadeOf(inventory);
 }
 
 bool PlayerFigure::syncCompanionPowerups(const Inventory& inventory) {
     const bool shieldRunning = m_action.animator.action() == PlayerAnimator::Action::ShieldRun;
-    const auto kind = PowerupCompanion::choose(PowerupEffects::of(inventory), shieldRunning);
+    const auto worn = PowerupEffects::of(inventory);
+    const auto kind = PowerupCompanion::choose(worn, shieldRunning);
+    const auto beside = PowerupCompanion::beside(worn);
     if (kind != m_companion.kind() ||
-        (kind != PowerupCompanion::Kind::None && !m_companion.shown())) {
+        (kind != PowerupCompanion::Kind::None && !m_companion.shown()) ||
+        beside != m_besidePojo.kind() ||
+        (beside != PowerupCompanion::Kind::None && !m_besidePojo.shown())) {
         return false;
     }
     m_companionAlpha = inventory.permanentPojo ? 1.0f : PowerupCompanion::fadeOf(inventory);
+    m_besidePojoAlpha = PowerupCompanion::phoenixFadeOf(inventory);
     return true;
 }
 
@@ -549,7 +558,8 @@ bool PlayerFigure::registerNativeResources(NativeStateResources& resources) cons
                                                            "player/missile/" + m_missileName))) &&
            (!m_familiarMissile.bound() ||
             resources.registerModel(m_familiarMissile, m_effects, "player/familiar-missile")) &&
-           m_companion.registerNativeResources(resources) && resources.good();
+           m_companion.registerNativeResources(resources) &&
+           m_besidePojo.registerNativeResources(resources) && resources.good();
 }
 
 std::optional<Vec3> PlayerFigure::handPosition(const Mat4& body) const {
@@ -822,15 +832,19 @@ bool PlayerFigure::armEquipmentReady(u32 equipment) const {
     return !arm || m_replicaArms[*arm].model.bound();
 }
 
-std::array<std::optional<CompanionVisual>, 2> PlayerFigure::companionVisuals(const Mat4& body,
+std::array<std::optional<CompanionVisual>, 3> PlayerFigure::companionVisuals(const Mat4& body,
                                                                              f32 alpha) const {
-    std::array<std::optional<CompanionVisual>, 2> result;
+    std::array<std::optional<CompanionVisual>, 3> result;
     result[0] = m_familiar.visual(body, alpha);
+    if (m_besidePojoDrawn) {
+        result[2] = m_besidePojo.visual(phoenixAttachment(body), alpha * m_besidePojoAlpha);
+    }
     if (!m_companion.shown()) {
         return result;
     }
     preparePresentation(1);
-    std::optional<Mat4> mount = phoenixActive() ? phoenixAttachment(body) : body;
+    const bool phoenix = m_companion.kind() == PowerupCompanion::Kind::Phoenix;
+    std::optional<Mat4> mount = phoenix ? phoenixAttachment(body) : body;
     switch (PowerupCompanion::mountOf(m_companion.kind())) {
     case PowerupCompanion::Mount::Head: mount = visualAttachment(body, "HEAD"); break;
     case PowerupCompanion::Mount::Back: mount = visualAttachment(body, m_backNode); break;
@@ -849,6 +863,10 @@ void PlayerFigure::drawCompanions(RenderDevice& device, const Mat4& clip, const 
     // butterfly does not write depth; drawing it before deferred scenery lets
     // even background geometry paint over it. Keep its authored state and defer it.
     m_familiar.draw(device, clip, body, lighting, alpha, camera, frameBlend, pass);
+    if (m_besidePojoDrawn) {
+        m_besidePojo.draw(device, clip, phoenixAttachment(body), lighting,
+                          alpha * m_besidePojoAlpha, camera, frameBlend, pass);
+    }
     if (!m_companion.shown()) {
         return;
     }
@@ -856,7 +874,8 @@ void PlayerFigure::drawCompanions(RenderDevice& device, const Mat4& clip, const 
     if (mountKind != PowerupCompanion::Mount::Body) {
         preparePresentation(frameBlend);
     }
-    std::optional<Mat4> mount = phoenixActive() ? phoenixAttachment(body) : body;
+    const bool phoenix = m_companion.kind() == PowerupCompanion::Kind::Phoenix;
+    std::optional<Mat4> mount = phoenix ? phoenixAttachment(body) : body;
     switch (mountKind) {
     case PowerupCompanion::Mount::Head: mount = visualAttachment(body, "HEAD"); break;
     case PowerupCompanion::Mount::Back: mount = visualAttachment(body, m_backNode); break;
@@ -994,9 +1013,11 @@ void PlayerFigure::drawMarker(RenderDevice& device, ItemArchive& archive, std::s
 void PlayerFigure::saveLocal(LocalSnapshot& state) const {
     state.m_actions = m_action;
     m_companion.saveLocal(state.m_companion);
+    m_besidePojo.saveLocal(state.m_besidePojo);
     m_familiar.saveLocal(state.m_familiar);
     state.m_costumeTextures = m_costumeTextures.clock();
     state.m_companionAlpha = m_companionAlpha;
+    state.m_besidePojoAlpha = m_besidePojoAlpha;
     state.m_owner = m_localOwner;
 }
 
@@ -1028,8 +1049,17 @@ bool PlayerFigure::appendState(NativeStateDigest& digest, const ActionState& act
 }
 
 bool PlayerFigure::appendNativeDigest(NativeStateDigest& digest) const {
-    return appendState(digest, m_action, m_costumeTextures.clock(), m_companionAlpha) &&
-           m_companion.appendNativeDigest(digest) && m_familiar.appendNativeDigest(digest);
+    if (!appendState(digest, m_action, m_costumeTextures.clock(), m_companionAlpha) ||
+        !m_companion.appendNativeDigest(digest) || !m_familiar.appendNativeDigest(digest)) {
+        return false;
+    }
+    // Keep the ordinary schema unchanged: only a phoenix carried beside Pojo adds to it.
+    if (m_besidePojo.kind() != PowerupCompanion::Kind::None) {
+        digest.string("PlayerFigure.beside-pojo");
+        digest.value(m_besidePojoAlpha);
+        return m_besidePojo.appendNativeDigest(digest);
+    }
+    return digest.good();
 }
 
 bool PlayerFigure::appendLocalDigest(NativeStateDigest& digest, const LocalSnapshot& saved) const {
@@ -1037,14 +1067,24 @@ bool PlayerFigure::appendLocalDigest(NativeStateDigest& digest, const LocalSnaps
         digest.invalidate();
         return false;
     }
-    const auto& [actions, companion, familiar, textures, companionAlpha, owner] = saved;
-    return appendState(digest, actions, textures, companionAlpha) &&
-           m_companion.appendLocalDigest(digest, companion) &&
-           m_familiar.appendLocalDigest(digest, familiar);
+    const auto& [actions, companion, besidePojo, familiar, textures, companionAlpha,
+                 besidePojoAlpha, owner] = saved;
+    if (!appendState(digest, actions, textures, companionAlpha) ||
+        !m_companion.appendLocalDigest(digest, companion) ||
+        !m_familiar.appendLocalDigest(digest, familiar)) {
+        return false;
+    }
+    if (PowerupCompanion::kindOf(besidePojo) != PowerupCompanion::Kind::None) {
+        digest.string("PlayerFigure.beside-pojo");
+        digest.value(besidePojoAlpha);
+        return m_besidePojo.appendLocalDigest(digest, besidePojo);
+    }
+    return digest.good();
 }
 
 bool PlayerFigure::canRestoreLocal(const LocalSnapshot& state) const {
     return state.m_owner.lock() == m_localOwner && m_companion.canRestoreLocal(state.m_companion) &&
+           m_besidePojo.canRestoreLocal(state.m_besidePojo) &&
            m_familiar.canRestoreLocal(state.m_familiar);
 }
 
@@ -1054,9 +1094,11 @@ bool PlayerFigure::restoreLocal(const LocalSnapshot& state) {
     }
     m_action = state.m_actions;
     m_companion.restoreLocal(state.m_companion);
+    m_besidePojo.restoreLocal(state.m_besidePojo);
     m_familiar.restoreLocal(state.m_familiar);
     m_costumeTextures.restoreClock(state.m_costumeTextures);
     m_companionAlpha = state.m_companionAlpha;
+    m_besidePojoAlpha = state.m_besidePojoAlpha;
     m_visualTransforms.clear();
     m_trail.clear(); // never draw speculative ghosts from the discarded branch
     return true;

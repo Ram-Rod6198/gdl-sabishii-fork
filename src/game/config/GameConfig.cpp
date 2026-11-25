@@ -393,6 +393,7 @@ template <class Io, class Config> void visitSettings(Io& io, Config& config) {
             combat.value("enemyHealthBars", config.combat.enemyHealthBars);
             combat.value("autoActivateItems", config.combat.autoActivateItems);
             combat.value("autoAim", config.combat.autoAim);
+            combat.value("phoenixBesidePojo", config.combat.phoenixBesidePojo);
         });
         game.named("multiplayer", config.multiplayer.mode, MultiplayerConfig::kNames,
                    "multiplayer mode must be normal, stun or hurt");

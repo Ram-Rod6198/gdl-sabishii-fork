@@ -660,6 +660,13 @@ TEST_CASE("Combat auto melee changes are shared persisted and reversible from ev
         CHECK(f.menu.menu().definition().items[3].value == "Off");
         f.choose(3);
         CHECK(f.config.combat.autoAim);
+        CHECK(f.menu.menu().definition().items[4].text == "Phoenix With Pojo");
+        CHECK(f.menu.menu().definition().items[4].value == "Off");
+        f.choose(4);
+        CHECK(f.config.combat.phoenixBesidePojo);
+        CHECK(f.menu.menu().definition().items[4].value == "On");
+        f.choose(4);
+        CHECK_FALSE(f.config.combat.phoenixBesidePojo);
         f.back();
         f.back();
         CHECK(f.menu.page() == SettingsMenu::Page::Root);

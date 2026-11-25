@@ -4,6 +4,7 @@
 
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/generators/catch_generators.hpp>
 
 #include "engine/core/Types.h"
 #include "engine/io/NativeStateDigest.h"
@@ -12,6 +13,7 @@
 #include "NativeStateSupport.h"
 #include "RecordedDrawChecks.h"
 #include "TestSupport.h"
+#include "game/characters/Progression.h"
 #include "game/combat/ArmorFlags.h"
 #include "game/combat/PowerupFlags.h"
 #include "game/level/NativeStateResources.h"
@@ -457,6 +459,132 @@ TEST_CASE("one powerup companion at a time, in the original's order", "[game][wo
     CHECK(PowerupCompanion::mountOf(Kind::FireBreath) == PowerupCompanion::Mount::Head);
     CHECK(PowerupCompanion::mountOf(Kind::Wings) == PowerupCompanion::Mount::Back);
     CHECK(PowerupCompanion::mountOf(Kind::Pojo) == PowerupCompanion::Mount::Body);
+}
+
+TEST_CASE("the phoenix keeps a place beside Pojo, and only beside Pojo",
+          "[game][world][companion]") {
+    PowerupEffects worn;
+    CHECK(PowerupCompanion::beside(worn) == Kind::None);
+    worn.special = powerup::kPhoenix;
+    CHECK(PowerupCompanion::choose(worn, false) == Kind::Phoenix);
+    CHECK(PowerupCompanion::beside(worn) == Kind::None);
+    worn.special = powerup::kPojo;
+    CHECK(PowerupCompanion::beside(worn) == Kind::None);
+    // Pojo takes the powerup's one place (PlayerProcessPowerups); the phoenix still fires.
+    worn.special = powerup::kPojo | powerup::kPhoenix | powerup::kLevitation;
+    CHECK(PowerupCompanion::choose(worn, false) == Kind::Pojo);
+    CHECK(PowerupCompanion::beside(worn) == Kind::Phoenix);
+}
+
+TEST_CASE("the phoenix beside Pojo fades on its own time", "[game][world][companion]") {
+    Inventory inventory;
+    CHECK(PowerupCompanion::phoenixFadeOf(inventory) == 1.0f);
+    inventory.addPowerup(powerup::kSpecial, powerup::kPojo, 0.0f, 20.0f);
+    inventory.addPowerup(powerup::kSpecial, powerup::kPhoenix, 0.0f, 0.25f);
+    CHECK(PowerupCompanion::fadeOf(inventory) == 1.0f);
+    CHECK(PowerupCompanion::phoenixFadeOf(inventory) == Approx(0.25f));
+}
+
+TEST_CASE("a phoenix carried with Pojo is kept beside him, drawn only when asked, and leaves "
+          "with its powerup",
+          "[game][world][companion][pojo][assets]") {
+    const auto root = test::assetOrSkip("POWERUPS/ANIM.PS2").parent_path().parent_path();
+    test::FakeRenderDevice device;
+    ItemArchive powerups;
+    ItemArchive weapons;
+    REQUIRE(powerups.load(root / "POWERUPS"));
+    REQUIRE(weapons.load(root / "WEAPONS"));
+    CharacterSave save;
+    save.character = 5;
+    save.color = 3;
+    // An earned familiar, whose volley is what the hidden phoenix fires with today.
+    save.progress().experience = levelExperience(80);
+    auto& inventory = save.progress().inventory;
+    inventory.permanentPojo = GENERATE(false, true);
+    CAPTURE(inventory.permanentPojo);
+    if (!inventory.permanentPojo) {
+        inventory.addPowerup(powerup::kSpecial, powerup::kPojo, 0, 60);
+    }
+    const auto figure = PlayerFigure::load(device, root, save, Entrance::Skip);
+    REQUIRE(figure);
+    REQUIRE(figure->familiarTier() > 0);
+    const auto camera = CameraFrame::at({0, 15, 20});
+    const Mat4 body = PlayerFigure::bodyPlacement(Mat4{1}, save, PowerupEffects::of(inventory));
+    const auto drawn = [&] {
+        device.draws.clear();
+        figure->draw(device, Mat4{1}, body, {}, 1, false, &camera);
+        return device.draws.size();
+    };
+    NativeStateResources registry;
+    REQUIRE(registry.registerBuiltinTexture(device.whiteTexture(), "opaque-white"));
+    REQUIRE(registry.registerArchive(powerups, "powerups"));
+    REQUIRE(registry.registerArchive(weapons, "weapons"));
+    figure->setCompanionPowerups(device, powerups, inventory, &weapons);
+    REQUIRE(figure->pojoActive());
+    CHECK_FALSE(figure->besidePojo().shown());
+    const usize alone = drawn();
+    REQUIRE(alone > 0);
+    const auto withoutPhoenix = test::liveDigest(*figure, registry);
+    PlayerFigure::LocalSnapshot before;
+    figure->saveLocal(before);
+
+    inventory.addPowerup(powerup::kSpecial, powerup::kPhoenix, 0, 0.5f);
+    CHECK_FALSE(figure->syncCompanionPowerups(inventory)); // a new companion must be bound
+    figure->setCompanionPowerups(device, powerups, inventory, &weapons);
+    CHECK(figure->companion().kind() == Kind::Pojo);
+    CHECK_FALSE(figure->phoenixActive()); // the powerup's own place is still Pojo's
+    REQUIRE(figure->besidePojo().shown());
+    CHECK(figure->besidePojo().kind() == Kind::Phoenix);
+    CHECK(figure->syncCompanionPowerups(inventory));
+    const auto kept = test::liveDigest(*figure, registry);
+    CHECK(kept != withoutPhoenix);
+
+    // Off, as the original: kept and animated, but nothing more is drawn.
+    CHECK(drawn() == alone);
+    CHECK_FALSE(figure->companionVisuals(body, 1)[2]);
+    // On: Pojo's own draws, and the phoenix's with them. Drawing changes no state.
+    figure->setPhoenixBesidePojo(true);
+    CHECK(drawn() > alone);
+    CHECK(test::liveDigest(*figure, registry) == kept);
+    const auto visuals = figure->companionVisuals(body, 1);
+    REQUIRE(visuals[0]);
+    REQUIRE(visuals[1]);
+    REQUIRE(visuals[2]);
+    CHECK(visuals[1]->form == static_cast<u32>(Kind::Pojo));
+    CHECK(visuals[2]->form == static_cast<u32>(Kind::Phoenix));
+    CHECK(visuals[2]->placement == figure->phoenixAttachment(body));
+    // It fades through its own last second, whatever Pojo has left.
+    CHECK(visuals[1]->alpha == 1.0f);
+    CHECK(visuals[2]->alpha == Approx(0.5f));
+
+    // The volley's release plays its attack, as in the powerup's own place.
+    REQUIRE(figure->besidePojo().sequence() == PowerupCompanion::kReady);
+    bool spat = false;
+    for (s32 tick = 0; tick < 240 && !spat; ++tick) {
+        figure->animate(0, 1, 1.0f / 60, tick % 60 < 2 ? PlayerDeed::Attack : PlayerDeed::None);
+        spat = figure->besidePojo().sequence() == 1;
+    }
+    CHECK(spat);
+
+    // A rewind to before the pickup puts it away, and back again brings it out.
+    PlayerFigure::LocalSnapshot carried;
+    figure->saveLocal(carried);
+    const auto carriedDigest = test::liveDigest(*figure, registry);
+    CHECK(test::savedDigest(*figure, carried, registry) == carriedDigest);
+    REQUIRE(figure->restoreLocal(before));
+    CHECK_FALSE(figure->besidePojo().shown());
+    CHECK(drawn() == alone);
+    CHECK(test::liveDigest(*figure, registry) == withoutPhoenix);
+    REQUIRE(figure->restoreLocal(carried));
+    CHECK(figure->besidePojo().shown());
+    CHECK(test::liveDigest(*figure, registry) == carriedDigest);
+
+    inventory.advance(1.0f);
+    figure->setCompanionPowerups(device, powerups, inventory, &weapons);
+    CHECK(figure->pojoActive());
+    CHECK_FALSE(figure->besidePojo().shown());
+    CHECK_FALSE(figure->companionVisuals(body, 1)[2]);
+    CHECK(drawn() == alone);
 }
 
 TEST_CASE("Pojo acts out what the body does", "[game][world][companion]") {

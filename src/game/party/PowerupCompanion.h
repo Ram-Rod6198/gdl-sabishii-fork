@@ -26,6 +26,8 @@ class NativeStateResources;
  * The companion a powerup brings along (PlayerProcessPowerups, player.c 5789): Pojo, the fire
  * shield's blaze while its bearer runs with it, the phoenix, a breath on the head, or wings on
  * the back, one at a time in that order, apart from any familiar the character has earned.
+ * The phoenix still spits while Pojo holds that one place (PlayerMotion, flags 0x80), so
+ * its bearer keeps a second one for it then: see beside().
  * Pojo acts out what the body does; the others idle, and the phoenix spits as its bearer
  * attacks. It fades over the last second of the powerups that bring companions.
  */
@@ -78,6 +80,8 @@ public:
         std::weak_ptr<const Resources> m_owner;
     };
     void saveLocal(LocalSnapshot& state) const;
+    /** The kind `state` holds, without restoring it. */
+    static Kind kindOf(const LocalSnapshot& state) { return state.m_state.kind; }
     bool canRestoreLocal(const LocalSnapshot& state) const;
     bool restoreLocal(const LocalSnapshot& state);
     bool appendNativeDigest(NativeStateDigest& digest) const;
@@ -94,6 +98,9 @@ public:
 
     /** The companion `worn` brings, while the body `shieldRunning` (SHIELD_RUN). */
     static Kind choose(const PowerupEffects& worn, bool shieldRunning);
+    /** The companion kept beside the chosen one: the phoenix while Pojo is worn with it,
+     * which would otherwise fire unseen. */
+    static Kind beside(const PowerupEffects& worn);
     static std::string_view treeOf(Kind kind);
     static Mount mountOf(Kind kind);
     /** Shared material setup for local and replicated companion models. */
@@ -106,6 +113,8 @@ public:
     /** How much of the companion shows: all of it until the last second of the powerups that
      * bring companions (familiar_time), fading through that second. */
     static f32 fadeOf(const Inventory& inventory);
+    /** The same for the phoenix alone, as the one beside Pojo fades on its own time. */
+    static f32 phoenixFadeOf(const Inventory& inventory);
 
     /** Brings the companion `kind` up from its archive, when it changed. */
     void choose(RenderDevice& device, Kind kind, ItemArchive& powerups, ItemArchive* weapons);

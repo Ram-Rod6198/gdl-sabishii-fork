@@ -99,6 +99,11 @@ PowerupCompanion::Kind PowerupCompanion::choose(const PowerupEffects& worn, bool
     return (worn.special & powerup::kLevitation) != 0 ? Kind::Wings : Kind::None;
 }
 
+PowerupCompanion::Kind PowerupCompanion::beside(const PowerupEffects& worn) {
+    constexpr u32 kBoth = powerup::kPojo | powerup::kPhoenix;
+    return (worn.special & kBoth) == kBoth ? Kind::Phoenix : Kind::None;
+}
+
 std::string_view PowerupCompanion::treeOf(Kind kind) {
     switch (kind) {
     case Kind::Pojo: return "POJO";
@@ -146,20 +151,32 @@ s32 PowerupCompanion::pojoSequenceOf(Action action) {
     }
 }
 
-f32 PowerupCompanion::fadeOf(const Inventory& inventory) {
+namespace {
+
+/** How much shows of what the working `specials` and `armors` bring, by their time left. */
+f32 fadeOfSlots(const Inventory& inventory, u32 specials, u32 armors) {
     f32 left = -1.0f; // none found yet
     for (const PowerupSlot& slot : inventory.powerups) {
         if (!slot.working()) {
             continue;
         }
-        const bool brings =
-            (slot.kind == powerup::kSpecial && (slot.flags & kCompanionSpecials) != 0) ||
-            (slot.kind == powerup::kArmor && (slot.flags & armor::kFireArmor) != 0);
+        const bool brings = (slot.kind == powerup::kSpecial && (slot.flags & specials) != 0) ||
+                            (slot.kind == powerup::kArmor && (slot.flags & armors) != 0);
         if (brings) {
             left = std::max(left, slot.strength < 0.0f ? kFadeSeconds : slot.strength);
         }
     }
     return left < 0.0f ? 1.0f : std::clamp(left / kFadeSeconds, 0.0f, 1.0f);
+}
+
+} // namespace
+
+f32 PowerupCompanion::fadeOf(const Inventory& inventory) {
+    return fadeOfSlots(inventory, kCompanionSpecials, armor::kFireArmor);
+}
+
+f32 PowerupCompanion::phoenixFadeOf(const Inventory& inventory) {
+    return fadeOfSlots(inventory, powerup::kPhoenix, 0);
 }
 
 void PowerupCompanion::choose(RenderDevice& device, Kind kind, ItemArchive& powerups,

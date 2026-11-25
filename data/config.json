@@ -47,7 +47,7 @@
     "difficulty": "normal",
     "multiplayer": "normal",
     "soloCamera": false,
-    "combat": { "autoMelee": false, "enemyHealthBars": true, "autoActivateItems": true }
+    "combat": { "autoMelee": false, "enemyHealthBars": true, "autoActivateItems": true, "phoenixBesidePojo": false }
   },
   "controls": {
     "explicitMovement": true,
