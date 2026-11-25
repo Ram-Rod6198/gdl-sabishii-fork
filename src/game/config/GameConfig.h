@@ -14,6 +14,7 @@
 #include "engine/render/RenderTypes.h"
 
 #include "game/config/MultiplayerMode.h"
+#include "game/config/ScoreboardMode.h"
 
 namespace gdl::game {
 
@@ -104,6 +105,8 @@ struct CombatConfig {
 struct GameOptionsConfig {
     bool expandedShop = false;
     bool autoSave = false;
+    /** The optional scoreboard: what it ranks the party by in a level, or Off for none. */
+    ScoreboardMode scoreboard = ScoreboardMode::Off;
     /** The additive mechanics switched on or off, by `MechanicDescriptor::id`; one unsaid is
      * off. Kept whole, so a build without a mechanic still keeps a player's choice for it. */
     std::map<std::string, bool, std::less<>> mechanics;

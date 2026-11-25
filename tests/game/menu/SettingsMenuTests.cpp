@@ -82,7 +82,7 @@ TEST_CASE("Game Options exposes optional shop stock and autosaving", "[settings]
     Fixture f;
     f.choose(1);
     REQUIRE(f.menu.page() == SettingsMenu::Page::Game);
-    REQUIRE(f.menu.menu().definition().items.size() == 6);
+    REQUIRE(f.menu.menu().definition().items.size() == 7);
     CHECK(f.menu.menu().definition().items.front().text == "Difficulty");
     CHECK(f.menu.menu().definition().items.back().text == "Language");
     CHECK(f.menu.menu().definition().items.back().value == "English");
@@ -100,6 +100,35 @@ TEST_CASE("Game Options exposes optional shop stock and autosaving", "[settings]
     CHECK(f.settings.writes == 2);
 }
 
+TEST_CASE("Game Options steps the scoreboard through off, kills and experience",
+          "[settings][scoreboard]") {
+    Fixture f;
+    f.choose(1);
+    REQUIRE(f.menu.page() == SettingsMenu::Page::Game);
+    const auto row = [&]() -> const MenuItem& {
+        const auto& items = f.menu.menu().definition().items;
+        REQUIRE(items.size() == 7);
+        return items[5];
+    };
+    CHECK(row().text == "Scoreboard");
+    CHECK(row().value == "Off");
+    CHECK(f.config.game.scoreboard == ScoreboardMode::Off);
+    f.focus(row().code);
+    f.right();
+    CHECK(f.config.game.scoreboard == ScoreboardMode::Kills);
+    CHECK(row().value == "Kills");
+    f.release();
+    f.right();
+    CHECK(f.config.game.scoreboard == ScoreboardMode::Experience);
+    CHECK(row().value == "Experience");
+    f.release();
+    f.right();
+    CHECK(f.config.game.scoreboard == ScoreboardMode::Off);
+    CHECK(row().value == "Off");
+    CHECK(f.settings.writes == 3);
+    CHECK_FALSE(f.config.game.autoSave);
+}
+
 TEST_CASE("Game Options switches each mechanic the build carries, after its own switches",
           "[settings][mechanics]") {
     MechanicCatalog mechanics;
@@ -109,9 +138,10 @@ TEST_CASE("Game Options switches each mechanic the build carries, after its own 
     f.choose(1);
     REQUIRE(f.menu.page() == SettingsMenu::Page::Game);
     const auto& items = f.menu.menu().definition().items;
-    REQUIRE(items.size() == 8);
+    REQUIRE(items.size() == 9);
     CHECK(items[5].text == "calm"); // by id, each named by its own text
     CHECK(items[6].text == "rage");
+    CHECK(items[7].text == "Scoreboard"); // the game's own value rows close the page
     CHECK(items.back().text == "Language");
     CHECK_FALSE(MechanicCatalog::enabled(f.config.game, "rage"));
     f.focus(items[6].code);

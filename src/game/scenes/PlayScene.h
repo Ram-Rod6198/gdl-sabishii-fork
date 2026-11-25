@@ -46,6 +46,7 @@
 #include "game/hud/LevelMessages.h"
 #include "game/hud/PartyHud.h"
 #include "game/hud/RuneMeter.h"
+#include "game/hud/Scoreboard.h"
 #include "game/level/ExitPortals.h"
 #include "game/level/FixtureHost.h"
 #include "game/level/LevelFixtures.h"
@@ -574,6 +575,7 @@ public:
     s32 viewSeat() const { return m_seats.viewSeat(); }
     const TowerCamera& seatCamera(s32 seat) const;
     const CompanionArrows& companionArrows() const { return m_arrows; }
+    const Scoreboard& scoreboard() const { return m_scoreboard; }
     /** Looks through `camera` instead of the level's own, for the developer console's free
      * camera; nothing gives the level's back. Either change cuts rather than glides. */
     void setViewOverride(const std::optional<WorldCamera>& camera);
@@ -1026,6 +1028,7 @@ private:
     PartyFigures m_figures;
     PartyNames m_names;
     CompanionArrows m_arrows; ///< presentation only
+    Scoreboard m_scoreboard;  ///< presentation only
 };
 
 } // namespace gdl::game

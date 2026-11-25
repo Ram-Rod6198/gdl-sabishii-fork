@@ -19,6 +19,7 @@ namespace {
 constexpr s32 kGraphicsCode = 4;
 constexpr s32 kHudCode = 5; ///< the root's row that opens the HUD page
 constexpr s32 kLanguageCode = 5;
+constexpr s32 kScoreboardCode = 7; ///< the Game page's scoreboard row, stepped through its modes
 constexpr s32 kFirstMechanicCode = 16; ///< the Game page's mechanics, one code each in order
 constexpr s32 kDisplayCode = 13;
 constexpr s32 kRendererCode = 14;
@@ -663,6 +664,10 @@ void SettingsMenu::rebuild(s32 selection) {
                             MechanicCatalog::enabled(m_config.game, mechanic.id));
             }
         }
+        rows.value(text("settings.scoreboard"), kScoreboardCode,
+                   text(std::format("settings.scoreboard.{}",
+                                    kScoreboardModeNames.at(static_cast<usize>(std::min(
+                                        m_config.game.scoreboard, ScoreboardMode::Experience))))));
         rows.value(text("settings.language"), kLanguageCode, languageName());
         break;
     case Page::Combat:
@@ -792,6 +797,12 @@ void SettingsMenu::change(s32 direction) {
             if (next.text.language == m_config.text.language) {
                 return;
             }
+        } else if (code == kScoreboardCode) {
+            // Off, Kills, Experience and round again, either way.
+            const auto count = static_cast<s32>(kScoreboardModeNames.size());
+            const s32 index = std::min(static_cast<s32>(next.game.scoreboard), count - 1);
+            next.game.scoreboard =
+                static_cast<ScoreboardMode>((index + (direction < 0 ? -1 : 1) + count) % count);
         } else if (const MechanicDescriptor* mechanic = mechanicOf(code)) {
             next.game.mechanics[std::string{mechanic->id}] =
                 !MechanicCatalog::enabled(next.game, mechanic->id);

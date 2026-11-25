@@ -2235,6 +2235,21 @@ void PlayScene::render(RenderDevice& device, const Mat4& frameProjection, f32 fr
         m_bossSequence.victory().drawCaption(m_canvas, m_messages.text(), m_hud.strings(), width,
                                              height);
         drawMechanicsHud();
+        // The optional scoreboard: the party's standing in this level, never in the tower.
+        const ScoreboardMode scoreboard = m_services->config != nullptr && !m_world->isTower()
+                                              ? m_services->config->game.scoreboard
+                                              : ScoreboardMode::Off;
+        const std::vector<Scoreboard::Row> standing =
+            scoreboard != ScoreboardMode::Off
+                ? Scoreboard::rank(levelResults(), m_players, scoreboard)
+                : std::vector<Scoreboard::Row>{};
+        const std::string_view heading =
+            m_services->strings == nullptr || standing.empty()
+                ? std::string_view{}
+                : m_services->strings->get(scoreboard == ScoreboardMode::Kills
+                                               ? "settings.scoreboard.kills"
+                                               : "settings.scoreboard.experience");
+        m_scoreboard.draw(m_canvas, m_messages.text(), heading, standing);
     }
     if (const auto* imported = m_world->imported()) {
         imported->drawEntranceTitle(m_canvas, width);

@@ -71,6 +71,22 @@ TEST_CASE("the defaults describe the original's screen and clock", "[game][confi
     REQUIRE(config.menu.padStart.front() == PadButton::Start);
 }
 
+TEST_CASE("the scoreboard is off until a mode is chosen, and refuses a mode it does not know",
+          "[game][config][scoreboard]") {
+    GameConfig config;
+    CHECK(config.game.scoreboard == ScoreboardMode::Off);
+    REQUIRE(config.loadFile(test::dataDirectory() / "config.json"));
+    CHECK(config.game.scoreboard == ScoreboardMode::Off);
+    config.mergeJson(R"({"game":{"scoreboard":"kills"}})");
+    CHECK(config.game.scoreboard == ScoreboardMode::Kills);
+    config.mergeJson(R"({"game":{"scoreboard":"experience"}})");
+    GameConfig restored;
+    restored.mergeJson(config.toJson());
+    CHECK(restored.game.scoreboard == ScoreboardMode::Experience);
+    CHECK_THROWS_AS(restored.mergeJson(R"({"game":{"scoreboard":"gold"}})"), FormatError);
+    CHECK_THROWS_AS(restored.mergeJson(R"({"game":{"scoreboard":true}})"), FormatError);
+}
+
 TEST_CASE("expanded shop and autosave are independent opt-in settings", "[game][config]") {
     GameConfig config;
     CHECK_FALSE(config.game.expandedShop);
@@ -828,6 +844,7 @@ constexpr std::string_view kDefaultSettingsFile = R"json({
     "expandedShop": false,
     "mechanics": {},
     "multiplayer": "normal",
+    "scoreboard": "off",
     "soloCamera": false
   },
   "save": {
@@ -1302,6 +1319,7 @@ constexpr std::string_view kChangedSettingsFile = R"json({
       "rage": true
     },
     "multiplayer": "stun",
+    "scoreboard": "off",
     "soloCamera": true
   },
   "save": {

@@ -429,6 +429,8 @@ add_library(game STATIC
     hud/StatusBox.cpp
     hud/CompanionArrows.h
     hud/CompanionArrows.cpp
+    hud/Scoreboard.h
+    hud/Scoreboard.cpp
     mechanics/BirthRules.h
     mechanics/BlowRules.h
     mechanics/FallRules.h
