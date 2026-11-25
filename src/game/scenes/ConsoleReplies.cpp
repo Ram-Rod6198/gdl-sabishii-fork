@@ -29,6 +29,14 @@ std::string cheatReply(ConsolePlay play, std::string_view verb, bool on) {
     return std::format("{} {}", verb, on ? "on" : "off");
 }
 
+std::string unlimitedReply(ConsolePlay play, std::string_view supply, bool on) {
+    if (offline(play)) {
+        return on ? std::format("Unlimited {} on", supply)
+                  : std::format("Unlimited {} off", supply);
+    }
+    return std::format("unlimited {} {}", supply, on ? "on" : "off");
+}
+
 std::string fallenReply(ConsolePlay play, s32 fallen) {
     if (offline(play) && fallen == 0) {
         return "Nobody was standing.";

@@ -14,7 +14,7 @@ struct RegisteredCommand {
 
 /** The application's commands in help's order, the console's own help first; the console's
  * roster tests hold the registrations to it. */
-inline constexpr std::array<RegisteredCommand, 18> kRegisteredCommands{{
+inline constexpr std::array<RegisteredCommand, 19> kRegisteredCommands{{
     {.name = "help", .reach = game::ConsoleReach::Local},
     {.name = "console_permissions", .reach = game::ConsoleReach::HostOnly},
     {.name = "debug_info", .reach = game::ConsoleReach::Local},
@@ -32,6 +32,7 @@ inline constexpr std::array<RegisteredCommand, 18> kRegisteredCommands{{
     {.name = "notarget", .reach = game::ConsoleReach::Shared},
     {.name = "god", .reach = game::ConsoleReach::Shared},
     {.name = "noclip", .reach = game::ConsoleReach::Shared},
+    {.name = "unlimited", .reach = game::ConsoleReach::Shared},
     {.name = "party_count", .reach = game::ConsoleReach::OfflineOnly},
 }};
 

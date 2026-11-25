@@ -1,4 +1,5 @@
 #include <array>
+#include <format>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -32,6 +33,17 @@ TEST_CASE("offline play and the shared game each keep their own console replies"
     CHECK(cheatReply(Play::Shared, "notarget", false) == "notarget off");
     CHECK(cheatReply(Play::Shared, "noclip", true) == "noclip on");
     CHECK(cheatReply(Play::Shared, "noclip", false) == "noclip off");
+
+    for (const std::string_view supply : {"keys", "potions", "turbo"}) {
+        CAPTURE(supply);
+        CHECK(unlimitedReply(Play::Offline, supply, true) ==
+              std::format("Unlimited {} on", supply));
+        CHECK(unlimitedReply(Play::Offline, supply, false) ==
+              std::format("Unlimited {} off", supply));
+        CHECK(unlimitedReply(Play::Shared, supply, true) == std::format("unlimited {} on", supply));
+        CHECK(unlimitedReply(Play::Shared, supply, false) ==
+              std::format("unlimited {} off", supply));
+    }
 
     // suicide and unlock_tower.
     CHECK(fallenReply(Play::Offline, 0) == "Nobody was standing.");

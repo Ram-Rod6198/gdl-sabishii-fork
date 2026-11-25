@@ -9,10 +9,12 @@
 
 #include "engine/assets/ItemArchive.h"
 #include "engine/assets/WorldLayout.h"
+#include "engine/core/Strings.h"
 
 #include "game/characters/CharacterSave.h"
 #include "game/characters/Inventory.h"
 #include "game/characters/Progression.h"
+#include "game/console/ConsoleUsage.h"
 #include "game/console/GiftRequest.h"
 #include "game/console/GotoRequest.h"
 #include "game/console/SpawnRequest.h"
@@ -97,6 +99,78 @@ private:
     std::string_view m_name;
     bool PlayScene::ConsoleCheats::*m_flag;
     std::string_view m_summary;
+};
+
+/** unlimited keys, potions or turbo: keeps the seat's supply of one at its most, or lets it run
+ * down again. */
+class UnlimitedVerb final : public SharedConsoleVerb {
+public:
+    std::string_view name() const override { return "unlimited"; }
+    std::vector<std::string_view> summaryForms() const override {
+        return {"keys", "potions", "turbo"};
+    }
+    std::string_view summaryTail() const override {
+        return "keeps yours at the most, or lets it run down again";
+    }
+    std::vector<std::pair<std::string, std::string>> usageRows() const override {
+        return ownedRows(kRows);
+    }
+    ConsoleWords words(Arguments arguments, const LevelCatalog& /*levels*/) const override {
+        ConsoleWords words;
+        if (arguments.size() <= 1) {
+            for (const Supply& supply : kSupplies) {
+                words.keywords.emplace_back(supply.word);
+            }
+        }
+        return words;
+    }
+    bool takesArguments() const override { return true; }
+    Reach check(Arguments arguments, ConsolePlay /*play*/) const override {
+        if (supplyOf(arguments) == nullptr) {
+            return gdl::Unexpected(
+                ConsoleRefusal{.kind = ConsoleRefusal::Kind::Usage, .text = consoleUsage(kRows)});
+        }
+        return ConsoleReach::Shared;
+    }
+    std::string apply(ConsoleStage& stage, s32 seat, Arguments arguments) const override {
+        const Supply* supply = supplyOf(arguments);
+        if (supply == nullptr) {
+            return consoleUsage(kRows);
+        }
+        PlayScene::ConsoleCheats changed = stage.cheats(seat);
+        bool& enabled = changed.*supply->flag;
+        enabled = !enabled;
+        stage.setCheats(seat, changed);
+        return unlimitedReply(stage.play(), supply->word, enabled);
+    }
+
+private:
+    struct Supply {
+        std::string_view word;
+        bool PlayScene::ConsoleCheats::*flag = nullptr;
+    };
+    static constexpr std::array<Supply, 3> kSupplies{
+        {{"keys", &PlayScene::ConsoleCheats::unlimitedKeys},
+         {"potions", &PlayScene::ConsoleCheats::unlimitedPotions},
+         {"turbo", &PlayScene::ConsoleCheats::unlimitedTurbo}}};
+    static constexpr std::array<std::pair<std::string_view, std::string_view>, 3> kRows{
+        {{"unlimited keys", "your keys stay at nine, or run down again"},
+         {"unlimited potions", "your potions stay at nine, or run down again"},
+         {"unlimited turbo", "your turbo meter stays full, or runs down again"}}};
+
+    /** The supply the words name, in any case; null for none, or for more words than one. */
+    static const Supply* supplyOf(Arguments arguments) {
+        if (arguments.size() != 1) {
+            return nullptr;
+        }
+        const std::string word = toLowerAscii(arguments[0]);
+        for (const Supply& supply : kSupplies) {
+            if (supply.word == word) {
+                return &supply;
+            }
+        }
+        return nullptr;
+    }
 };
 
 /** get: an item, experience or a level for the seat's character; get info stays local. */
@@ -482,8 +556,10 @@ std::span<const SharedConsoleVerb* const> sharedConsoleVerbs() {
                                   "nothing harms you, or everything does again"};
     static const CheatToggle kNoclip{"noclip", &PlayScene::ConsoleCheats::noclip,
                                      "flies you through everything, or sets you down again"};
+    static const UnlimitedVerb kUnlimited{};
     static const std::array<const SharedConsoleVerb*, kSharedConsoleWords.size()> kVerbs{
-        &kGoto, &kTowerUnlock, &kGift, &kSpawn, &kSuicide, &kNoTarget, &kGod, &kNoclip};
+        &kGoto,     &kTowerUnlock, &kGift,   &kSpawn,    &kSuicide,
+        &kNoTarget, &kGod,         &kNoclip, &kUnlimited};
     return kVerbs;
 }
 

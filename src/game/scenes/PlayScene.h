@@ -106,9 +106,12 @@ struct ConsoleCheats {
     bool god = false;
     bool noTarget = false;
     bool noclip = false;
+    bool unlimitedKeys = false;    ///< the seat's keys are kept at the most it may carry
+    bool unlimitedPotions = false; ///< and its potions
+    bool unlimitedTurbo = false;   ///< and its turbo meter full
     template <class Visitor>
     friend void visitNativeState(Visitor& visitor, const ConsoleCheats& value) {
-        visitor.template fields<3>(value);
+        visitor.template fields<6>(value);
     }
     bool operator==(const ConsoleCheats&) const = default;
 };
@@ -756,6 +759,7 @@ private:
     std::optional<PlayOutcome> advancePortals(s32 ticks, f32 seconds, const Inputs& inputs);
     void advanceCameras(f32 seconds, const std::vector<CameraSubject>& subjects);
     void advanceRuneMeter();
+    void keepConsoleSupplies();
     /** Runs `action`'s shared verb for its seat at the start of a tick, in `play`'s game, and
      * says what came of it. */
     std::string applyConsoleAction(const ConsoleAction& action, ConsolePlay play);

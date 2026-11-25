@@ -259,6 +259,16 @@ TEST_CASE("every shared verb answers with its words today", "[native-console][as
     CHECK(fixture->say("noclip", 1) == "noclip off");
     CHECK_FALSE(scene.cheats(1).noclip);
     CHECK_FALSE(scene.runtime(1)->ghost);
+    CHECK(fixture->say("unlimited turbo", 1) == "unlimited turbo on");
+    CHECK(scene.cheats(1).unlimitedTurbo);
+    CHECK_FALSE(scene.cheats(0).unlimitedTurbo);
+    CHECK(scene.runtime(1)->turbo.held() == TurboMeter::kFull);
+    CHECK(fixture->say("unlimited turbo", 1) == "unlimited turbo off");
+    CHECK(fixture->say("unlimited keys") == "unlimited keys on");
+    CHECK(fixture->say("unlimited keys") == "unlimited keys off");
+    CHECK(fixture->say("unlimited potions") == "unlimited potions on");
+    CHECK(fixture->say("unlimited potions") == "unlimited potions off");
+    CHECK(scene.cheats(0) == ConsoleCheats{});
 
     // Gifts, and their refusals: words get cannot read, the cap and counters left no room.
     const s32 gold = fixture->save(0).gold;
@@ -570,6 +580,52 @@ TEST_CASE("every shared verb answers offline in offline play's words", "[native-
     CHECK(fixture->offlineSay("noclip x", 1) == "This command toggles without arguments.");
     CHECK(fixture->offlineSay("noclip", 1) == "Noclip off");
     CHECK_FALSE(scene.cheats(1).noclip);
+
+    // unlimited keeps the seat's own keys, potions or turbo at the most, tick after tick, until
+    // it is said again; hands that came in empty are filled, the potions with fire.
+    constexpr std::string_view kUnlimitedUsage =
+        "unlimited keys     your keys stay at nine, or run down again\n"
+        "unlimited potions  your potions stay at nine, or run down again\n"
+        "unlimited turbo    your turbo meter stays full, or runs down again";
+    CHECK(fixture->offlineSay("unlimited") == kUnlimitedUsage);
+    CHECK(fixture->offlineSay("unlimited gold") == kUnlimitedUsage);
+    CHECK(fixture->offlineSay("unlimited keys potions") == kUnlimitedUsage);
+    CHECK(scene.cheats(0) == ConsoleCheats{});
+    CHECK(fixture->offlineSay("unlimited keys") == "Unlimited keys on");
+    CHECK(scene.cheats(0).unlimitedKeys);
+    CHECK_FALSE(scene.cheats(1).unlimitedKeys);
+    CHECK(fixture->save(0).progress().inventory.keys == Inventory::kMostKeys);
+    CHECK(fixture->save(1).progress().inventory.keys == 0);
+    REQUIRE(fixture->save(0).progress().inventory.spendKey());
+    fixture->offlineStep();
+    CHECK(fixture->save(0).progress().inventory.keys == Inventory::kMostKeys);
+    CHECK(fixture->offlineSay("unlimited keys") == "Unlimited keys off");
+    REQUIRE(fixture->save(0).progress().inventory.spendKey());
+    fixture->offlineStep();
+    CHECK(fixture->save(0).progress().inventory.keys == Inventory::kMostKeys - 1);
+    CHECK(fixture->offlineSay("unlimited Potions", 1) == "Unlimited potions on");
+    CHECK(fixture->save(1).progress().inventory.potions ==
+          std::vector<s32>(static_cast<usize>(Inventory::kMostPotions), 1));
+    CHECK(fixture->save(0).progress().inventory.potions.empty());
+    CHECK(fixture->save(1).progress().inventory.takePotion() == 1);
+    fixture->save(1).progress().inventory.potions.back() = 3;
+    fixture->offlineStep();
+    CHECK(fixture->save(1).progress().inventory.potions.size() ==
+          static_cast<usize>(Inventory::kMostPotions));
+    CHECK(fixture->save(1).progress().inventory.nextPotion() == 3);
+    CHECK(fixture->offlineSay("unlimited potions", 1) == "Unlimited potions off");
+    // Both meters emptied, so a full one is the console's doing.
+    for (const s32 seat : {0, 1}) {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast): mutable scene fixture
+        const_cast<PlayerRuntime*>(scene.runtime(seat))->turbo.reset();
+    }
+    CHECK(fixture->offlineSay("unlimited turbo") == "Unlimited turbo on");
+    CHECK(scene.runtime(0)->turbo.held() == TurboMeter::kFull);
+    CHECK(scene.runtime(1)->turbo.held() < TurboMeter::kFull);
+    CHECK(fixture->offlineSay("unlimited turbo") == "Unlimited turbo off");
+    CHECK(scene.cheats(0) == ConsoleCheats{});
+    CHECK(scene.cheats(1) == ConsoleCheats{});
+    fixture->emptyHands();
 
     // get's gifts and the words it cannot read.
     const s32 gold = fixture->save(0).gold;

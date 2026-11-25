@@ -31,10 +31,10 @@ TEST_CASE("each session admits what it admits today", "[dev-console][online-cons
     const std::vector<std::string_view> everythingOffline{
         "help",     "debug_info",  "list",         "activate", "unlock", "lock",
         "goto",     "party_count", "unlock_tower", "get",      "spawn",  "suicide",
-        "notarget", "god",         "hidehud",      "freecam",  "noclip"};
+        "notarget", "god",         "hidehud",      "freecam",  "noclip", "unlimited"};
     const std::vector<std::string_view> everythingOnline{
-        "help",    "debug_info", "list", "goto",    "unlock_tower", "get",   "spawn",
-        "suicide", "notarget",   "god",  "hidehud", "freecam",      "noclip"};
+        "help",    "debug_info", "list", "goto",    "unlock_tower", "get",    "spawn",
+        "suicide", "notarget",   "god",  "hidehud", "freecam",      "noclip", "unlimited"};
     std::vector<std::string_view> everythingHosted = everythingOnline;
     everythingHosted.insert(everythingHosted.begin() + 1, "console_permissions");
     const std::array<Row, 8> rows{{

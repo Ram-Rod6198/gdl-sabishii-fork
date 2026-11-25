@@ -207,7 +207,7 @@ TEST_CASE("each verb's help reads as the console's", "[dev-console][online-conso
         std::string_view summary;
     };
     // goto names its own forms; the Legends maps' form adds its own where it is listed.
-    constexpr std::array<Help, 8> kHelp{
+    constexpr std::array<Help, 9> kHelp{
         {{"goto", "<map> [x y z] or x y z: brings the party there"},
          {"unlock_tower", "opens every wing and portal of the tower"},
          {"get", "<item> [amount], exp <points> or level <level>: for you"},
@@ -216,7 +216,9 @@ TEST_CASE("each verb's help reads as the console's", "[dev-console][online-conso
          {"suicide", "fells everyone standing"},
          {"notarget", "the enemies stop seeing you, or see you again"},
          {"god", "nothing harms you, or everything does again"},
-         {"noclip", "flies you through everything, or sets you down again"}}};
+         {"noclip", "flies you through everything, or sets you down again"},
+         {"unlimited",
+          "keys, potions or turbo: keeps yours at the most, or lets it run down again"}}};
     for (const Help& help : kHelp) {
         CAPTURE(help.name);
         CHECK(summaryOf(verbNamed(help.name)) == help.summary);
@@ -232,8 +234,8 @@ TEST_CASE("each verb's help reads as the console's", "[dev-console][online-conso
         CHECK(verbNamed(name).usageRows().empty());
         CHECK(verbNamed(name).usageNote().empty());
     }
-    // goto offers the tower for its first word, then the catalogue's levels; nothing else
-    // offers a word.
+    // goto offers the tower for its first word, then the catalogue's levels; unlimited offers
+    // what it keeps; nothing else offers a word.
     const LevelCatalog levels;
     const std::vector<std::string> typing{""};
     const std::vector<std::string> second{"G1", ""};
@@ -244,13 +246,18 @@ TEST_CASE("each verb's help reads as the console's", "[dev-console][online-conso
     CHECK(after.keywords.empty());
     CHECK(after.names.empty());
     for (const SharedConsoleVerb* verb : sharedConsoleVerbs()) {
-        if (verb->name() != "goto") {
+        if (verb->name() != "goto" && verb->name() != "unlimited") {
             CAPTURE(verb->name());
             const ConsoleWords none = verb->words(typing, levels);
             CHECK(none.keywords.empty());
             CHECK(none.names.empty());
         }
     }
+    const ConsoleWords supplies = verbNamed("unlimited").words(typing, levels);
+    CHECK(supplies.keywords == std::vector<std::string>{"keys", "potions", "turbo"});
+    CHECK(supplies.names.empty());
+    const std::vector<std::string> past{"keys", ""};
+    CHECK(verbNamed("unlimited").words(past, levels).keywords.empty());
 }
 
 } // namespace

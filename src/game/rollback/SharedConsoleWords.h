@@ -14,14 +14,15 @@ struct SharedConsoleWord {
 };
 
 /** The shared console's commands, in the order the console registers them. */
-inline constexpr std::array<SharedConsoleWord, 8> kSharedConsoleWords{{{"goto", {}},
+inline constexpr std::array<SharedConsoleWord, 9> kSharedConsoleWords{{{"goto", {}},
                                                                        {"unlock_tower", {}},
                                                                        {"get", "info"},
                                                                        {"spawn", {}},
                                                                        {"suicide", {}},
                                                                        {"notarget", {}},
                                                                        {"god", {}},
-                                                                       {"noclip", {}}}};
+                                                                       {"noclip", {}},
+                                                                       {"unlimited", {}}}};
 
 /** The shared command named `lowered`, a name already in lower case; null for any other. */
 constexpr const SharedConsoleWord* findSharedConsoleWord(std::string_view lowered) {

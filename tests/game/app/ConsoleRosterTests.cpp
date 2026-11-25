@@ -46,7 +46,7 @@ using Words = std::vector<std::string>;
 /** The roster's commands after the console's help in a second order: party_count after goto,
  * hidehud and freecam after god. Each group of names sharing a first letter keeps the roster's
  * order. */
-constexpr std::array<std::string_view, 17> kSecondOrder{"console_permissions",
+constexpr std::array<std::string_view, 18> kSecondOrder{"console_permissions",
                                                         "debug_info",
                                                         "list",
                                                         "activate",
@@ -62,7 +62,8 @@ constexpr std::array<std::string_view, 17> kSecondOrder{"console_permissions",
                                                         "god",
                                                         "hidehud",
                                                         "freecam",
-                                                        "noclip"};
+                                                        "noclip",
+                                                        "unlimited"};
 
 /** What list answers words it cannot read. */
 constexpr std::string_view kListUsage =
@@ -81,7 +82,7 @@ struct Summary {
     std::string_view name;
     std::string_view summary;
 };
-constexpr std::array<Summary, 18> kSummaries{{
+constexpr std::array<Summary, 19> kSummaries{{
     {"help", "lists the commands"},
     {"console_permissions", "0 or 1: host allows guests to use the console"},
     {"debug_info", "shows or hides the level debug overlay"},
@@ -100,6 +101,7 @@ constexpr std::array<Summary, 18> kSummaries{{
     {"notarget", "the enemies stop seeing you, or see you again"},
     {"god", "nothing harms you, or everything does again"},
     {"noclip", "flies you through everything, or sets you down again"},
+    {"unlimited", "keys, potions or turbo: keeps yours at the most, or lets it run down again"},
     {"party_count", "<1-4> or off: the party size the level sets itself up for"},
 }};
 
@@ -276,10 +278,11 @@ TEST_CASE("help lists the commands in the order they are registered",
     CHECK(fixture.say("help") ==
           helpOf({"help", "debug_info", "hidehud", "freecam", "list", "activate", "unlock", "lock",
                   "goto", "unlock_tower", "get", "spawn", "suicide", "notarget", "god", "noclip",
-                  "party_count"}));
+                  "unlimited", "party_count"}));
     CHECK(fixture.say("help", {.role = ConsoleRole::Host}) ==
           helpOf({"help", "console_permissions", "debug_info", "hidehud", "freecam", "list", "goto",
-                  "unlock_tower", "get", "spawn", "suicide", "notarget", "god", "noclip"}));
+                  "unlock_tower", "get", "spawn", "suicide", "notarget", "god", "noclip",
+                  "unlimited"}));
     // A Legends map's preview runs its own words alone.
     CHECK(fixture.say("help",
                       ConsolePolicy::session({.preview = kLegendsPreviewWords, .parked = true})) ==

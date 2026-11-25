@@ -37,8 +37,9 @@ std::array<Line, 11> splitLines() {
 
 TEST_CASE("the shared words are found by their lower-case names, in the console's order",
           "[netplay][console-input][online-console]") {
-    constexpr std::array<std::string_view, 8> kNames{"goto",    "unlock_tower", "get", "spawn",
-                                                     "suicide", "notarget",     "god", "noclip"};
+    constexpr std::array<std::string_view, 9> kNames{"goto",  "unlock_tower", "get",
+                                                     "spawn", "suicide",      "notarget",
+                                                     "god",   "noclip",       "unlimited"};
     REQUIRE(kSharedConsoleWords.size() == kNames.size());
     for (usize i = 0; i < kNames.size(); ++i) {
         CAPTURE(kNames[i]);

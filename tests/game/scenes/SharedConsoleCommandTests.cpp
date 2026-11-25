@@ -301,7 +301,7 @@ TEST_CASE("the shared commands' help, usage and words read as they do today",
         std::string_view name;
         std::string_view summary;
     };
-    constexpr std::array<Help, 17> kHelp{{
+    constexpr std::array<Help, 18> kHelp{{
         {"help", "lists the commands"},
         {"debug_info", "stands in"},
         {"hidehud", "stands in"},
@@ -319,6 +319,7 @@ TEST_CASE("the shared commands' help, usage and words read as they do today",
         {"notarget", "the enemies stop seeing you, or see you again"},
         {"god", "nothing harms you, or everything does again"},
         {"noclip", "flies you through everything, or sets you down again"},
+        {"unlimited", "keys, potions or turbo: keeps yours at the most, or lets it run down again"},
         {"party_count", "stands in"},
     }};
     std::string expected;

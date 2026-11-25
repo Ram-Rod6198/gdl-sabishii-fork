@@ -45,6 +45,7 @@ constexpr f32 kLevelUpEffectSeconds = 3.0f; ///< the fanfare's ring about the ch
 constexpr std::string_view kMenuMoveSound = "S_OPTMENUMOVVRT";
 constexpr std::string_view kMenuSelectSound = "S_OPTMENUSEL";
 constexpr std::string_view kMenuExitSound = "S_OPTMENUEXIT";
+constexpr s32 kConsolePotionKind = 1; ///< fire: what `unlimited potions` fills an empty belt with
 constexpr s32 kMinTicks = 1; ///< a frame advances the clock by at least one tick
 constexpr s32 kMaxTicks = 4; ///< and, however late, by at most four
 
@@ -1284,6 +1285,9 @@ PlayOutcome PlayScene::advanceNative(f64 deltaSeconds, const Inputs& inputs) {
         return PlayOutcome::Running;
     }
     const auto [ticks, seconds] = beginTick(deltaSeconds);
+    // What the console's unlimited promised is there before anything below can spend it,
+    // whatever holds the tick.
+    keepConsoleSupplies();
     // Each hold below owns the whole tick while it lasts, in this order of precedence.
     if (m_sim.gameOver.active()) {
         return advanceGameOver(ticks, seconds);
@@ -1842,6 +1846,30 @@ void PlayScene::advanceCameras(f32 seconds, const std::vector<CameraSubject>& su
             imported->trackBoss(std::nullopt);
         }
         imported->followCamera(followed.empty() ? subjects : followed, seconds);
+    }
+}
+
+/** The developer console's `unlimited`: tops up what a seat was promised at the start of each
+ * tick, so a key, a potion or a turbo move is always there to spend. Potions are topped up
+ * with the kind that shows, fire when none is held. */
+void PlayScene::keepConsoleSupplies() {
+    for (PlayerRuntime& runtime : m_players) {
+        const ConsoleCheats& granted = cheats(runtime.actor.player());
+        // One fallen carries nothing: its keys lie where it fell and its meter is empty.
+        if (runtime.departed || runtime.life != PlayerLife::Standing) {
+            continue;
+        }
+        Inventory& inventory = runtime.actor.save().progress().inventory;
+        if (granted.unlimitedKeys) {
+            inventory.addKeys(Inventory::kMostKeys);
+        }
+        if (granted.unlimitedPotions) {
+            const s32 shown = inventory.nextPotion();
+            inventory.addPotions(shown != 0 ? shown : kConsolePotionKind, Inventory::kMostPotions);
+        }
+        if (granted.unlimitedTurbo) {
+            runtime.turbo.add(TurboMeter::kFull);
+        }
     }
 }
 

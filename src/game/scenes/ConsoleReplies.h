@@ -16,6 +16,9 @@ namespace gdl::game {
 
 /** What god, notarget or noclip, named `verb`, says once it is turned `on` or off. */
 std::string cheatReply(PlayScene::ConsolePlay play, std::string_view verb, bool on);
+/** What unlimited says once the supply named `supply` (keys, potions or turbo) is kept at its
+ * most, `on`, or let run down again. */
+std::string unlimitedReply(PlayScene::ConsolePlay play, std::string_view supply, bool on);
 /** What suicide says once `fallen` characters have fallen, away from the tower. */
 std::string fallenReply(PlayScene::ConsolePlay play, s32 fallen);
 /** What unlock_tower says once the tower stands open to the `opened` characters still in. */
