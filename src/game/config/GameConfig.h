@@ -104,6 +104,9 @@ struct CombatConfig {
 struct GameOptionsConfig {
     bool expandedShop = false;
     bool autoSave = false;
+    /** Manage Character's menu offers Status: the character's lifetime totals, the ones the
+     * end of the game shows, at any time. Off, the menu is the original's. */
+    bool characterStatus = false;
     /** The additive mechanics switched on or off, by `MechanicDescriptor::id`; one unsaid is
      * off. Kept whole, so a build without a mechanic still keeps a player's choice for it. */
     std::map<std::string, bool, std::less<>> mechanics;

@@ -71,6 +71,16 @@ constexpr s32 kMenuQuit = 1004;
 constexpr s32 kMenuDone = 1005;
 constexpr s32 kMenuYes = 1006;
 constexpr s32 kMenuNo = 1007;
+constexpr s32 kMenuStatus = 1009;
+/** The status page's lines, down the lane as the final stats run down the shop's. */
+constexpr s32 kStatusTitleY = 32;
+constexpr s32 kStatusFirstY = 60;
+constexpr s32 kStatusLineStep = 18;
+constexpr s32 kStatusGroupGap = 2;
+constexpr f32 kStatusTitleScale = 0.56f;
+constexpr f32 kStatusScale = 0.48f;
+constexpr s64 kMinutesPerHour = 60;
+constexpr s64 kHoursPerDay = 24;
 constexpr s32 kMenuSlotBase = 2000;
 constexpr std::string_view kShadowSuffix = "SHADW";
 constexpr std::string_view kSumnerPortrait = "S12_SUM";
@@ -243,7 +253,11 @@ void SelectLane::openMenu(State state) {
                             {std::string(text("select.done")), kMenuDone}};
         definition.items[0].enabled = m_services != nullptr && m_services->slots != nullptr;
         definition.items[2].enabled = anySaved;
-        selection = 4;
+        if (m_services != nullptr && m_services->characterStatus) {
+            definition.items.insert(definition.items.begin() + 3,
+                                    {std::string(text("select.status")), kMenuStatus});
+        }
+        selection = static_cast<s32>(definition.items.size()) - 1; // Done
     }
     if (m_services != nullptr && m_services->menuPainter != nullptr) {
         m_menu.open(definition, *m_services->menuPainter, m_services->screen, selection);
@@ -407,6 +421,15 @@ SelectLane::Result SelectLane::update(const MenuInput& rawInput, s32 ticks, cons
         break;
 
     case State::SaveMenu:
+        // The original's cheat for this page answers the back control (Y on a pad), which
+        // the character's menu has no other use for; a mouse's back button is left out.
+        if (m_services != nullptr && m_services->characterStatus && input.back &&
+            !input.pointerBack && event.action != MenuAction::Choice) {
+            play(SelectSound::Select);
+            m_returnState = State::SaveMenu;
+            enter(State::Status);
+            break;
+        }
         if (event.action == MenuAction::Choice) {
             switch (event.code) {
             case kMenuDone:
@@ -420,6 +443,11 @@ SelectLane::Result SelectLane::update(const MenuInput& rawInput, s32 ticks, cons
             case kMenuLoad:
                 m_returnState = State::SaveMenu;
                 enter(m_saved ? State::LoadPick : State::LoadConfirm);
+                break;
+            case kMenuStatus:
+                play(SelectSound::Select);
+                m_returnState = State::SaveMenu;
+                enter(State::Status);
                 break;
             case kMenuChange:
                 m_returnState = State::SaveMenu;
@@ -531,6 +559,13 @@ SelectLane::Result SelectLane::update(const MenuInput& rawInput, s32 ticks, cons
         }
         break;
 
+    case State::Status:
+        if (input.select || input.back || input.start) {
+            play(SelectSound::Select);
+            returnBack();
+        }
+        break;
+
     case State::LoadPick:
     case State::SavePick:
         if (event.action == MenuAction::Back) {
@@ -638,6 +673,7 @@ SelectLane::BoxMode SelectLane::boxMode() const {
     case State::SavePick:
     case State::OverwriteConfirm:
     case State::Saving:
+    case State::Status:
     case State::LockedIn: return BoxMode::Status;
     default: return BoxMode::Plain;
     }
@@ -747,6 +783,13 @@ std::vector<SelectLane::PointerTarget> SelectLane::pointerTargets() const {
                                 static_cast<f32>(kWidth), static_cast<f32>(kStatsY - kPortraitY)},
                                PointerAction::Select});
         }
+        return targets;
+    }
+    if (m_state == State::Status) {
+        // A click anywhere in the lane puts the page away.
+        targets.push_back(
+            {{static_cast<f32>(x()), 0, static_cast<f32>(kWidth), static_cast<f32>(kPanelHeight)},
+             PointerAction::Select});
         return targets;
     }
     if (m_state == State::LockedIn) {
@@ -919,6 +962,38 @@ void SelectLane::drawNameEntry(Canvas& canvas, s32 time) const {
     }
 }
 
+/** The totals shop_show_final_stats shows once the game is won, all at once and without its
+ * timed reveal: kills, generators, gold and the time played as the character's class. */
+void SelectLane::drawStatus(Canvas& canvas) const {
+    if (m_services == nullptr || m_services->largePainter == nullptr) {
+        return;
+    }
+    const TextPainter& painter = *m_services->largePainter;
+    const LifetimeStats& totals = m_save.progress().lifetime;
+    drawLines(canvas, painter, kStatusTitleY, kStatusLineStep, kStatusTitleScale,
+              text("select.status"), Color::white());
+    s32 y = kStatusFirstY;
+    const auto line = [&](const std::string& value) {
+        drawLines(canvas, painter, y, kStatusLineStep, kStatusScale, value, Color::white());
+        y += kStatusLineStep;
+    };
+    line(text("shop.enemiesKilled"));
+    line(std::to_string(totals.enemiesKilled));
+    y += kStatusGroupGap;
+    line(text("shop.generators"));
+    line(text("shop.destroyed"));
+    line(std::to_string(totals.generatorsDestroyed));
+    y += kStatusGroupGap;
+    line(text("shop.goldFound"));
+    line(std::to_string(totals.goldFound));
+    y += kStatusGroupGap;
+    line(text("shop.totalPlaytime"));
+    const auto minutes = static_cast<s64>(totals.playSeconds / 60);
+    line(std::format("{} {}", minutes / (kMinutesPerHour * kHoursPerDay), text("shop.days")));
+    line(std::format("{} {}", minutes / kMinutesPerHour % kHoursPerDay, text("shop.hours")));
+    line(std::format("{} {}", minutes % kMinutesPerHour, text("shop.minutes")));
+}
+
 void SelectLane::drawState(Canvas& canvas, s32 time) const {
     if (m_services == nullptr || m_services->smallPainter == nullptr ||
         m_services->largePainter == nullptr) {
@@ -947,6 +1022,7 @@ void SelectLane::drawState(Canvas& canvas, s32 time) const {
         drawLines(canvas, small, kMessageY, kLineHeight, kSmallScale, text("select.noFiles"),
                   Color::white());
         break;
+    case State::Status: drawStatus(canvas); break;
     case State::LoadPick:
         drawLines(canvas, small, kListMenuY - kLineHeight * 2 - 8, kLineHeight, kSmallScale,
                   text("select.chooseLoad"), Color::white());
@@ -984,7 +1060,7 @@ void SelectLane::drawState(Canvas& canvas, s32 time) const {
         break;
     case State::Inactive: break;
     }
-    if (m_state == State::SaveMenu) {
+    if (m_state == State::SaveMenu || m_state == State::Status) {
         const s32 level = experienceLevel(m_save.experience());
         drawLines(canvas, small, kLevelY, kLineHeight, kSmallScale,
                   std::vformat(text("select.level"), std::make_format_args(level)), Color::white());

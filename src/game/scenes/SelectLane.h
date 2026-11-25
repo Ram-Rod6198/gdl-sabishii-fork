@@ -53,6 +53,9 @@ struct LaneServices {
     const Texture* glowSheet = nullptr;
     MenuTextures menuTextures; ///< sheets the lane menus draw with
     s32 keyboardLane = -1;     ///< the lane whose player can also type a name
+    /** The character's menu offers Status, and its back control opens it too
+     * (game.characterStatus). */
+    bool characterStatus = false;
 };
 
 /**
@@ -81,6 +84,7 @@ public:
         SavePick,
         OverwriteConfirm,
         Saving,
+        Status, ///< the character's lifetime totals, until any press
         LockedIn
     };
 
@@ -189,6 +193,7 @@ private:
     MenuInput pointerInput(const MenuInput& input);
     void drawStats(Canvas& canvas, s32 time) const;
     void drawNameEntry(Canvas& canvas, s32 time) const;
+    void drawStatus(Canvas& canvas) const;
     void drawState(Canvas& canvas, s32 time) const;
 
     LaneServices* m_services = nullptr;

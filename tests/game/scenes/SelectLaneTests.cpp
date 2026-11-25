@@ -639,6 +639,116 @@ TEST_CASE("characters save to a slot and load back into the class picker", "[gam
     REQUIRE(other.slotInUse() == 1U);
 }
 
+TEST_CASE("the character's menu offers Status only when the option is on",
+          "[game][select][status]") {
+    Fixture f("select-lane-status-off");
+    CharacterSave save;
+    save.name = "PELE";
+    f.lane.resume(save, std::nullopt);
+    f.step(MenuInput{.start = true});
+    REQUIRE(f.lane.state() == SelectLane::State::SaveMenu);
+    REQUIRE(f.lane.menu().definition().items.size() == 5);
+    CHECK(f.lane.menu().selection() == 4); // Done
+    // The original's menu ignores the back control.
+    f.step(MenuInput{.back = true});
+    CHECK(f.lane.state() == SelectLane::State::SaveMenu);
+    f.step(MenuInput{.select = true}); // Done
+    REQUIRE(f.lane.lockedIn());
+
+    f.services.characterStatus = true;
+    f.step(MenuInput{.start = true});
+    const auto& items = f.lane.menu().definition().items;
+    REQUIRE(items.size() == 6);
+    CHECK(items[2].text == "select.load");
+    CHECK(items[3].text == "select.status");
+    CHECK(items[3].enabled);
+    CHECK(items[4].text == "select.quit");
+    CHECK(items[5].text == "select.done");
+    CHECK(f.lane.menu().selection() == 5); // Done is still the row first offered
+}
+
+TEST_CASE("Status shows the character's lifetime totals and any press puts it away",
+          "[game][select][status]") {
+    Fixture f("select-lane-status");
+    f.services.characterStatus = true;
+    CharacterSave save;
+    save.name = "PELE";
+    save.progress().lifetime.enemiesKilled = 1234;
+    save.progress().lifetime.generatorsDestroyed = 56;
+    save.progress().lifetime.goldFound = 7890;
+    save.progress().lifetime.playSeconds =
+        26.0 * 3600 + 5 * 60 + 59; // a day, two hours, five minutes
+    f.lane.resume(save, std::optional<usize>{1});
+    const CharacterSave before = f.lane.save();
+    f.step(MenuInput{.start = true});
+    REQUIRE(f.lane.state() == SelectLane::State::SaveMenu);
+
+    const auto drawn = [&] {
+        test::FakeRenderDevice device;
+        Canvas canvas;
+        canvas.begin(device, Mat4{1});
+        f.lane.drawText(canvas, 0);
+        canvas.end();
+        usize quads = 0;
+        for (const auto& draw : device.draws) {
+            quads += draw.vertices.size() / 6;
+        }
+        return quads;
+    };
+
+    // By its row.
+    f.step(MenuInput{.up = true}); // Quit
+    f.step(MenuInput{.up = true}); // Status
+    f.sounds.clear();
+    f.step(MenuInput{.select = true});
+    REQUIRE(f.lane.state() == SelectLane::State::Status);
+    CHECK(f.sounds == std::vector<SelectSound>{SelectSound::Select});
+    CHECK(f.lane.boxMode() == SelectLane::BoxMode::Status);
+    CHECK_FALSE(f.lane.lockedIn());
+    CHECK(f.lane.selecting());
+    // Every glyph of the page: the title, the captions, the totals and the level line.
+    const std::string_view page = "select.status"
+                                  "shop.enemiesKilled"
+                                  "1234"
+                                  "shop.generators"
+                                  "shop.destroyed"
+                                  "56"
+                                  "shop.goldFound"
+                                  "7890"
+                                  "shop.totalPlaytime"
+                                  "1shop.days"
+                                  "2shop.hours"
+                                  "5shop.minutes"
+                                  "select.level";
+    CHECK(drawn() == page.size());
+    REQUIRE(f.lane.pointerTargets().size() == 1);
+    CHECK(f.lane.pointerTargets()[0].action == SelectLane::PointerAction::Select);
+    f.step(MenuInput{}, 600);
+    CHECK(f.lane.state() == SelectLane::State::Status); // it waits for a press
+    f.step(MenuInput{.select = true});
+    REQUIRE(f.lane.state() == SelectLane::State::SaveMenu);
+
+    // By the back control, which a mouse's back button does not stand in for.
+    MenuInput mouseBack;
+    mouseBack.back = true;
+    mouseBack.pointerBack = true;
+    f.step(mouseBack);
+    CHECK(f.lane.state() == SelectLane::State::SaveMenu);
+    f.step(MenuInput{.back = true});
+    REQUIRE(f.lane.state() == SelectLane::State::Status);
+    f.step(MenuInput{.back = true});
+    REQUIRE(f.lane.state() == SelectLane::State::SaveMenu);
+    f.step(MenuInput{.back = true});
+    f.step(MenuInput{.start = true});
+    REQUIRE(f.lane.state() == SelectLane::State::SaveMenu);
+
+    // Looking changes nothing about the character or its file.
+    CHECK(f.lane.save() == before);
+    CHECK(f.lane.saved());
+    CHECK(f.lane.slotInUse() == 1U);
+    CHECK(f.lane.hasCharacter());
+}
+
 TEST_CASE("quitting an unsaved character asks first", "[game][select]") {
     Fixture f("select-lane-quit");
     f.lane.activate();

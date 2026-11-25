@@ -119,6 +119,7 @@ bool PlayerSelectScene::open(RenderDevice& device, const GameServices& services,
     m_services.glowSheet = staticTexture("FONT32_GLOW");
     m_services.keyboardLane = MenuInputSource::kKeyboardPlayer;
     if (m_gameServices->config != nullptr) {
+        m_services.characterStatus = m_gameServices->config->game.characterStatus;
         for (usize player = 0; player < m_gameServices->config->controls.size(); ++player) {
             if (m_gameServices->config->controls[player].device == "keyboard") {
                 m_services.keyboardLane = static_cast<s32>(player);
