@@ -15,7 +15,7 @@ class VulkanContext;
  * texture. Additive pipelines leave the depth buffer alone. */
 class VulkanPipeline {
 public:
-    enum class Effect : u8 { None, DepthOfField, Bloom, AmbientOcclusion };
+    enum class Effect : u8 { None, DepthOfField, Bloom, AmbientOcclusion, Crt };
     VulkanPipeline(VulkanContext& context, const std::filesystem::path& shaderDirectory,
                    VkFormat colorFormat, VkFormat depthFormat,
                    VkDescriptorSetLayout textureSetLayout, BlendMode blend,

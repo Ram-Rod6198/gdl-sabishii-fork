@@ -178,11 +178,11 @@ TEST_CASE("mouse operates settings pages sliders and graphics without keyboard c
     click(1);
     CHECK(f.menu.config().display.vsync != wasVsync);
     const s32 writesBeforeVideo = f.settings.writes;
-    click(12);
+    click(13);
     REQUIRE(f.menu.menu().definition().items.size() == 2);
     CHECK(f.settings.writes == writesBeforeVideo);
     click(0);
-    REQUIRE(f.menu.menu().definition().items.size() == 14);
+    REQUIRE(f.menu.menu().definition().items.size() == 15);
     CHECK(f.settings.writes == writesBeforeVideo + 1);
     CHECK(f.config.display.vsync != wasVsync);
     // No Back row: the back control (the mouse's second button maps to it) leaves the page.
@@ -731,7 +731,7 @@ TEST_CASE("Video stages discrete choices until Apply and ignores Confirm on sett
     REQUIRE(f.menu.menu().definition().items[3].text == "Video");
     f.select();
     REQUIRE(f.menu.page() == SettingsMenu::Page::Graphics);
-    REQUIRE(f.menu.menu().definition().items.size() == 14);
+    REQUIRE(f.menu.menu().definition().items.size() == 15);
     CHECK(f.menu.menu().definition().items[0].value == "Vulkan");
     CHECK(f.menu.menu().definition().items[1].value == "On");
     CHECK(f.menu.menu().definition().items[2].value == "30");
@@ -891,11 +891,12 @@ TEST_CASE("the expanded Video page keeps native font rows and its action bar sep
     f.menu.open(f.config, &f.strings, nullptr, f.painter, {}, MenuDefinition::parchment());
     f.choose(4);
     const auto& definition = f.menu.menu().definition();
-    REQUIRE(definition.items.size() == 14);
+    REQUIRE(definition.items.size() == 15);
     REQUIRE(definition.items[0].text == "Renderer");
     REQUIRE(definition.items[11].text == "Smooth Sprites");
+    REQUIRE(definition.items[12].text == "CRT Filter");
     const s32 height = f.painter.lineHeight(definition.scale);
-    for (s32 row = 0; row < 11; ++row) {
+    for (s32 row = 0; row < 12; ++row) {
         CAPTURE(row, height, definition.scale);
         CHECK(f.menu.menu().itemY(row) + height < f.menu.menu().itemY(row + 1));
     }
@@ -1026,6 +1027,9 @@ TEST_CASE("Video preview requires confirmation and uses a wall-clock rollback de
     CHECK_FALSE(active.display.smoothSprites);
     f.down();
     REQUIRE(f.menu.menu().selection() == 12);
+    CHECK(f.menu.menu().definition().items[12].text == "CRT Filter");
+    f.down();
+    REQUIRE(f.menu.menu().selection() == 13);
     f.select();
     REQUIRE(f.menu.menu().definition().items.size() == 2);
     CHECK(f.menu.menu().selection() == 1); // default to Revert, not Save
@@ -1065,7 +1069,7 @@ TEST_CASE("Video preview requires confirmation and uses a wall-clock rollback de
         CHECK(active.display.vsync);
         CHECK(previews == 2);
         CHECK(f.settings.writes == 0);
-        CHECK(f.menu.menu().definition().items.size() == 14);
+        CHECK(f.menu.menu().definition().items.size() == 15);
         CHECK_FALSE(active.display.smoothSprites);
         CHECK(active.display.textureFiltering == 8);
         CHECK_FALSE(active.display.depthOfField);
@@ -1110,9 +1114,10 @@ TEST_CASE("Video defaults stay staged and the action row navigates horizontally"
     f.down();
     f.down();
     f.down();
-    REQUIRE(f.menu.menu().selection() == 12);
-    f.right();
+    f.down();
     REQUIRE(f.menu.menu().selection() == 13);
+    f.right();
+    REQUIRE(f.menu.menu().selection() == 14);
     f.select();
     CHECK(f.menu.config().display.vsync);
     CHECK_FALSE(f.menu.config().display.depthOfField);
@@ -1125,12 +1130,12 @@ TEST_CASE("Video defaults stay staged and the action row navigates horizontally"
     MenuInput up;
     up.up = true;
     f.menu.update(up, 1);
-    CHECK(f.menu.menu().selection() == 11); // last enabled setting: Smooth Sprites
+    CHECK(f.menu.menu().selection() == 12); // last enabled setting: CRT Filter
     f.down();
     f.right();
-    REQUIRE(f.menu.menu().selection() == 13); // the row is Apply and Restore Defaults alone
+    REQUIRE(f.menu.menu().selection() == 14); // the row is Apply and Restore Defaults alone
     f.right();
-    REQUIRE(f.menu.menu().selection() == 12);
+    REQUIRE(f.menu.menu().selection() == 13);
     f.back();
     CHECK(f.menu.page() == SettingsMenu::Page::Root);
     CHECK_FALSE(f.menu.config().display.vsync);
@@ -1159,7 +1164,8 @@ TEST_CASE("Video rollback preserves a manually resized window", "[settings][grap
     f.down();
     f.down();
     f.down();
-    f.down(); // past the post effects, Texture Filtering and Smooth Sprites to Apply
+    f.down();
+    f.down(); // past the post effects, Texture Filtering, Smooth Sprites and CRT Filter to Apply
     f.select();
     REQUIRE(active.display.windowMode == WindowMode::Fullscreen);
     f.back();
@@ -1208,7 +1214,8 @@ TEST_CASE("Video font and columns reserve the widest choices before selecting th
     f.down();
     f.down();
     f.down();
-    f.down(); // past the post effects and Texture Filtering to Apply
+    f.down();
+    f.down(); // past the post effects, the filtering rows and CRT Filter to Apply
     f.right();
     f.select(); // Restore Defaults
     unchanged();
@@ -1231,10 +1238,10 @@ TEST_CASE("Restore Defaults previews the default window size and thirty fps befo
     };
     f.menu.open(f.config, &f.strings, &f.settings, f.painter, {}, {}, SettingsMenu::Scope::Level);
     f.choose(4);
-    for (s32 i = 0; i < 9; ++i) {
+    for (s32 i = 0; i < 10; ++i) {
         f.down();
     }
-    REQUIRE(f.menu.menu().selection() == 12);
+    REQUIRE(f.menu.menu().selection() == 13);
     f.right();
     f.select();
     CHECK(f.menu.config().display.windowMode == WindowMode::Windowed);
@@ -1746,7 +1753,7 @@ TEST_CASE("the Video page offers the renderer from the title, needing a restart,
     f.painter.setFont(&f.font, &f.texture);
     f.choose(4);
     const auto& items = f.menu.menu().definition().items;
-    REQUIRE(items.size() == 14);
+    REQUIRE(items.size() == 15);
     CHECK(items[0].code == 14);
     CHECK(items[0].text == "Renderer");
     CHECK(items[0].value == "Vulkan");
@@ -2177,4 +2184,52 @@ TEST_CASE("a keyboard player's control scheme stands under its device, is turned
     f.menu.update(readPlayerMenuInput(physical, f.config, 2), 1);
     const auto& padItems = f.menu.menu().definition().items;
     CHECK(std::ranges::find(padItems, 106, &MenuItem::code) == padItems.end());
+}
+
+TEST_CASE("the Video page offers the CRT filter with Vulkan, off until the player turns it on",
+          "[settings][graphics][crt]") {
+    Fixture f;
+    GameConfig active = f.config;
+    f.settings.video = [&](const auto& next) {
+        active = next;
+        return true;
+    };
+    CHECK_FALSE(f.config.display.crtFilter);
+    f.menu.open(f.config, &f.strings, &f.settings, f.painter, {}, {}, SettingsMenu::Scope::Level);
+    f.choose(4);
+    REQUIRE(f.menu.page() == SettingsMenu::Page::Graphics);
+    constexpr s32 kCrtFilter = 7;
+    const auto row = [&]() -> const MenuItem& {
+        const auto& items = f.menu.menu().definition().items;
+        const auto item = std::ranges::find(items, kCrtFilter, &MenuItem::code);
+        REQUIRE(item != items.end());
+        return *item;
+    };
+    CHECK(row().text == "CRT Filter");
+    CHECK(row().value == "Off");
+    CHECK(row().enabled);
+    f.focus(kCrtFilter);
+    f.right();
+    CHECK(row().value == "On");
+    // Staged like every Video row: nothing changes before Apply, nothing is kept before Save.
+    CHECK_FALSE(active.display.crtFilter);
+    f.choose(5);
+    CHECK(active.display.crtFilter);
+    CHECK_FALSE(f.config.display.crtFilter);
+    f.choose(100);
+    CHECK(f.config.display.crtFilter);
+    f.choose(6); // Restore Defaults
+    CHECK(row().value == "Off");
+}
+
+TEST_CASE("the CRT filter is greyed under OpenGL, which draws no post-processing",
+          "[settings][graphics][crt][opengl]") {
+    Fixture f;
+    f.config.display.renderer = GraphicsApi::OpenGl;
+    f.menu.open(f.config, &f.strings, &f.settings, f.painter, {}, {});
+    f.choose(4);
+    const auto& items = f.menu.menu().definition().items;
+    const auto item = std::ranges::find(items, 7, &MenuItem::code);
+    REQUIRE(item != items.end());
+    CHECK_FALSE(item->enabled);
 }

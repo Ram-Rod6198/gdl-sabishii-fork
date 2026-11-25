@@ -33,6 +33,7 @@ public:
     void waitIdle() override;
     bool applyDepthOfField(const DepthOfField& settings) override;
     bool applyBloom() override;
+    bool applyCrtFilter(const CrtFilter& settings) override;
     void addHeatSource(const HeatSource& source) override;
     bool applyAmbientOcclusion(const AmbientOcclusion& settings) override;
 

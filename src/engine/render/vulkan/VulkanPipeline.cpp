@@ -56,6 +56,8 @@ VulkanPipeline::VulkanPipeline(VulkanContext& context, const std::filesystem::pa
     } else if (effect == Effect::AmbientOcclusion) {
         fragment = samples == VK_SAMPLE_COUNT_1_BIT ? "ambient_occlusion.frag.spv"
                                                     : "ambient_occlusion_ms.frag.spv";
+    } else if (effect == Effect::Crt) {
+        fragment = "crt.frag.spv"; // reads no depth, so one shader serves every sample count
     }
     const VkShaderModule fragmentModule = loadShaderModule(shaderDirectory / fragment);
 

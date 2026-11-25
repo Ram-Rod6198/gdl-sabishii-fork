@@ -70,6 +70,7 @@ class PackageTests(unittest.TestCase):
             "build/bin/shaders/depth_of_field_ms.frag.spv": b"multisampled depth shader",
             "build/bin/shaders/bloom.frag.spv": b"bloom and heat shader",
             "build/bin/shaders/bloom_ms.frag.spv": b"multisampled bloom and heat shader",
+            "build/bin/shaders/crt.frag.spv": b"picture tube shader",
             "build/bin/shaders/ambient_occlusion.frag.spv": b"contact shading shader",
             "build/bin/shaders/ambient_occlusion_ms.frag.spv": b"multisampled contact shader",
             "build/bin/shaders/platform.glsl": b"shader platform prelude",
@@ -92,7 +93,7 @@ class PackageTests(unittest.TestCase):
                                   output or self.output, runtime_dirs)
 
     def test_every_optional_effect_shader_is_required_before_packaging(self):
-        for name in ("bloom.frag.spv", "bloom_ms.frag.spv",
+        for name in ("bloom.frag.spv", "bloom_ms.frag.spv", "crt.frag.spv",
                      "ambient_occlusion.frag.spv", "ambient_occlusion_ms.frag.spv",
                      "platform.glsl", "immediate.frag"):
             with self.subTest(shader=name):

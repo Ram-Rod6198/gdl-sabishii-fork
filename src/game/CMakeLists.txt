@@ -631,6 +631,7 @@ gdl_add_shaders(gauntlet
         ${CMAKE_SOURCE_DIR}/shaders/immediate.frag
         ${CMAKE_SOURCE_DIR}/shaders/postprocess.vert
         ${CMAKE_SOURCE_DIR}/shaders/bloom.frag
+        ${CMAKE_SOURCE_DIR}/shaders/crt.frag
         ${CMAKE_SOURCE_DIR}/shaders/bloom_ms.frag
         ${CMAKE_SOURCE_DIR}/shaders/ambient_occlusion.frag
         ${CMAKE_SOURCE_DIR}/shaders/ambient_occlusion_ms.frag

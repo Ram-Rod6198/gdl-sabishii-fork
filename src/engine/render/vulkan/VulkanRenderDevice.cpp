@@ -493,6 +493,15 @@ bool VulkanRenderDevice::applyBloom() {
     return true;
 }
 
+bool VulkanRenderDevice::applyCrtFilter(const CrtFilter& settings) {
+    if (!settings.drawable() || !preparePostProcess()) {
+        return false;
+    }
+    m_postProcess->recordCrt(m_frames[m_frameIndex].commandBuffer, *m_swapchain, m_imageIndex,
+                             settings);
+    return true;
+}
+
 bool VulkanRenderDevice::applyAmbientOcclusion(const AmbientOcclusion& settings) {
     if (!preparePostProcess()) {
         return false;

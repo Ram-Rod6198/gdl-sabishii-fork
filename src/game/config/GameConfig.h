@@ -36,7 +36,10 @@ struct DisplayConfig {
     bool depthOfField = false;     ///< experimental scene-only far-field blur; never blurs the HUD
     bool bloom = false;            ///< experimental scene-only highlight glow; leaves UI untouched
     bool ambientOcclusion = false; ///< subtle depth-based contact shading, before effects/UI
-    bool smoothSprites = false;    ///< alpha-aware cubic magnification of pickup sprites
+    /** A picture-tube look over the whole frame, HUD and menus included: scan lines, a faint
+     * grille and darker corners. Off, the picture is as the port has always drawn it. */
+    bool crtFilter = false;
+    bool smoothSprites = false; ///< alpha-aware cubic magnification of pickup sprites
     /** Cut a generator's lava pool to the silhouette its artists drew but shipped without
      * colours; off shows the pool's whole square, as the console did. */
     bool authoredSilhouettes = true;

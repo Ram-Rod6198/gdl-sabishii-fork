@@ -17,6 +17,7 @@
 #include "engine/io/File.h"
 #include "engine/math/Math.h"
 #include "engine/platform/Paths.h"
+#include "engine/render/CrtFilter.h"
 #include "engine/render/RenderTypes.h"
 
 #include "formats/TplFile.h"
@@ -1377,6 +1378,13 @@ void Gauntlet::onRender(RenderDevice& device) {
     }
     if (!m_hudHidden) {
         m_autoSaveIcon.render(device, device.framebufferExtent());
+    }
+    // Last of all, so the tube shows everything the frame holds. A device that cannot
+    // (OpenGL's) leaves the picture as it is.
+    if (m_config.display.crtFilter) {
+        device.applyCrtFilter(
+            CrtFilter::of({m_config.display.frameWidth, m_config.display.frameHeight},
+                          device.framebufferExtent()));
     }
 }
 

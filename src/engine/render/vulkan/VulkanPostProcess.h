@@ -6,6 +6,7 @@
 
 #include "engine/core/SpecialMembers.h"
 #include "engine/render/AmbientOcclusion.h"
+#include "engine/render/CrtFilter.h"
 #include "engine/render/DepthOfField.h"
 #include "engine/render/HeatDistortion.h"
 #include "engine/render/vulkan/VulkanCommon.h"
@@ -29,6 +30,9 @@ public:
                 const DepthOfField& settings);
     void recordBloom(VkCommandBuffer cmd, const VulkanSwapchain& swapchain, u32 imageIndex,
                      const HeatDistortion& heat);
+    /** The whole frame, not the scene alone: recorded last, after the HUD and menus. */
+    void recordCrt(VkCommandBuffer cmd, const VulkanSwapchain& swapchain, u32 imageIndex,
+                   const CrtFilter& settings);
     void recordAmbientOcclusion(VkCommandBuffer cmd, const VulkanSwapchain& swapchain,
                                 u32 imageIndex, const AmbientOcclusion& settings);
 
@@ -39,6 +43,7 @@ private:
     std::unique_ptr<VulkanPipeline> m_pipeline;
     std::unique_ptr<VulkanPipeline> m_bloomPipeline;
     std::unique_ptr<VulkanPipeline> m_aoPipeline;
+    std::unique_ptr<VulkanPipeline> m_crtPipeline;
     VkImage m_color = VK_NULL_HANDLE;
     VmaAllocation m_allocation = VK_NULL_HANDLE;
     VkImageView m_view = VK_NULL_HANDLE;

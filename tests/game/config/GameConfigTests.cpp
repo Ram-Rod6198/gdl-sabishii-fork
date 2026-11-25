@@ -254,6 +254,7 @@ TEST_CASE("graphics settings round-trip with thirty fps presentation defaults",
     CHECK_FALSE(config.display.depthOfField);
     CHECK_FALSE(config.display.bloom);
     CHECK_FALSE(config.display.ambientOcclusion);
+    CHECK_FALSE(config.display.crtFilter);
     CHECK_FALSE(config.display.smoothSprites);
     CHECK(config.display.authoredSilhouettes);
     CHECK(config.display.maxFrameRate == 30);
@@ -799,6 +800,7 @@ constexpr std::string_view kDefaultSettingsFile = R"json({
     "ambientOcclusion": false,
     "authoredSilhouettes": true,
     "bloom": false,
+    "crtFilter": false,
     "depthOfField": false,
     "frameHeight": 448,
     "frameWidth": 640,
@@ -1270,6 +1272,7 @@ constexpr std::string_view kChangedSettingsFile = R"json({
     "ambientOcclusion": true,
     "authoredSilhouettes": false,
     "bloom": true,
+    "crtFilter": true,
     "depthOfField": true,
     "frameHeight": 600,
     "frameWidth": 800,
@@ -1336,6 +1339,7 @@ GameConfig awayFromDefaults() {
     display.vsync = false;
     display.depthOfField = true;
     display.bloom = true;
+    display.crtFilter = true;
     display.ambientOcclusion = true;
     display.smoothSprites = true;
     display.authoredSilhouettes = false;

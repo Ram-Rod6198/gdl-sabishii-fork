@@ -140,6 +140,10 @@ public:
     void addHeatSource(const HeatSource& source) override {
         m_control->draws.addHeatSource(source);
     }
+    bool applyCrtFilter(const CrtFilter& settings) override {
+        m_control->events.emplace_back("crt");
+        return m_control->draws.applyCrtFilter(settings);
+    }
     bool applyAmbientOcclusion(const AmbientOcclusion& settings) override {
         m_control->events.emplace_back("ao");
         return m_control->draws.applyAmbientOcclusion(settings);
@@ -224,6 +228,7 @@ TEST_CASE("render packets own uploads geometry auxiliary textures and post-proce
         device.addHeatSource({Vec2{0.5f}, Vec2{0.1f}, 0.9f, 1});
         device.applyBloom();
         device.applyDepthOfField({});
+        device.applyCrtFilter(CrtFilter::of({640, 448}, {1920, 1080}));
         device.endFrame();
         device.waitIdle();
         CHECK(device.presentationSampleCount() == 4);
@@ -233,13 +238,17 @@ TEST_CASE("render packets own uploads geometry auxiliary textures and post-proce
         CHECK(control->draws.smoothSprites);
         REQUIRE(control->draws.draws.size() == 1);
         CHECK(control->draws.draws[0].vertices.size() == 6);
+        // The picture-tube pass reaches the device with its frame, after everything drawn.
+        REQUIRE(control->draws.crtSettings.size() == 1);
+        CHECK(control->draws.crtSettings[0].height == 1080.0f);
+        CHECK(control->draws.crtDrawOffsets == std::vector<usize>{1});
         CHECK(control->sampled[0] == std::vector<u8>{100, 110, 120, 255});
         for (usize index = 1; index < 4; ++index) {
             CHECK(control->sampled[index] == std::vector<u8>{20, 30, 40, 255});
         }
         const std::vector<std::string> expected{"create", "create", "create", "create",
                                                 "begin",  "update", "draw",   "ao",
-                                                "bloom",  "dof",    "end"};
+                                                "bloom",  "dof",    "crt",    "end"};
         REQUIRE(control->events.size() >= expected.size());
         CHECK(std::equal(expected.begin(), expected.end(), control->events.begin()));
         CHECK(control->events[expected.size()] == "idle"); // fence before texture retirement

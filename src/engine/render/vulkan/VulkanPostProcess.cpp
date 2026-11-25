@@ -71,12 +71,16 @@ VulkanPostProcess::VulkanPostProcess(VulkanContext& context, const VulkanSwapcha
     m_aoPipeline = std::make_unique<VulkanPipeline>(
         context, shaders, swapchain.colorFormat(), VK_FORMAT_UNDEFINED, textureLayout,
         BlendMode::Opaque, swapchain.samples(), VulkanPipeline::Effect::AmbientOcclusion);
+    m_crtPipeline = std::make_unique<VulkanPipeline>(
+        context, shaders, swapchain.colorFormat(), VK_FORMAT_UNDEFINED, textureLayout,
+        BlendMode::Opaque, swapchain.samples(), VulkanPipeline::Effect::Crt);
 }
 
 VulkanPostProcess::~VulkanPostProcess() {
     m_pipeline.reset();
     m_bloomPipeline.reset();
     m_aoPipeline.reset();
+    m_crtPipeline.reset();
     vkDestroyDescriptorPool(m_context.device(), m_pool, nullptr);
     vkDestroyImageView(m_context.device(), m_view, nullptr);
     vmaDestroyImage(m_context.allocator(), m_color, m_allocation);
@@ -112,6 +116,19 @@ void VulkanPostProcess::recordBloom(VkCommandBuffer cmd, const VulkanSwapchain& 
         constants.effectData1[lane] = source.seconds;
     }
     recordPass(cmd, swapchain, imageIndex, *m_bloomPipeline, constants);
+}
+
+void VulkanPostProcess::recordCrt(VkCommandBuffer cmd, const VulkanSwapchain& swapchain,
+                                  u32 imageIndex, const CrtFilter& settings) {
+    const f32 width = static_cast<f32>(swapchain.extent().width);
+    const f32 height = static_cast<f32>(swapchain.extent().height);
+    const VulkanPipeline::PushConstants constants{
+        Mat4{0.0f},
+        Vec4{settings.x / width, settings.y / height, (settings.x + settings.width) / width,
+             (settings.y + settings.height) / height},
+        Vec4{settings.columns, settings.rows, settings.scanlineStrength(), CrtFilter::kGrille},
+        Vec4{1.0f / width, 1.0f / height, CrtFilter::kCorners, 0.0f}};
+    recordPass(cmd, swapchain, imageIndex, *m_crtPipeline, constants);
 }
 
 void VulkanPostProcess::recordAmbientOcclusion(VkCommandBuffer cmd,

@@ -355,6 +355,7 @@ template <class Io, class Config> void visitSettings(Io& io, Config& config) {
         display.value("depthOfField", config.display.depthOfField);
         display.value("bloom", config.display.bloom);
         display.value("ambientOcclusion", config.display.ambientOcclusion);
+        display.value("crtFilter", config.display.crtFilter);
         display.value("smoothSprites", config.display.smoothSprites);
         display.value("authoredSilhouettes", config.display.authoredSilhouettes);
         display.value("hudStyle", config.display.hudStyle);

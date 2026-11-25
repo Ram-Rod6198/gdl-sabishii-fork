@@ -20,6 +20,7 @@ class ImmediateBatch;
 class Texture;
 struct DepthOfField;
 struct AmbientOcclusion;
+struct CrtFilter;
 struct HeatSource;
 
 /** A graphics API that cannot start on this machine: no loader, driver, context or
@@ -187,6 +188,10 @@ public:
     virtual void addHeatSource(const HeatSource& source) = 0;
     /** Contact shading before translucent effects and UI. */
     virtual bool applyAmbientOcclusion(const AmbientOcclusion& settings) = 0;
+    /** Redraws everything drawn so far, HUD and menus included, through the picture-tube
+     * look: the frame's last call before endFrame. Returns false when the device cannot,
+     * as one without scene post-processing cannot. */
+    virtual bool applyCrtFilter(const CrtFilter& /*settings*/) { return false; }
 
 private:
     SceneFog m_sceneFog;

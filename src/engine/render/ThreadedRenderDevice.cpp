@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "engine/render/AmbientOcclusion.h"
+#include "engine/render/CrtFilter.h"
 #include "engine/render/DepthOfField.h"
 #include "engine/render/HeatDistortion.h"
 #include "engine/render/ImmediateBatch.h"
@@ -343,6 +344,11 @@ bool ThreadedRenderDevice::applyDepthOfField(const DepthOfField& settings) {
 }
 bool ThreadedRenderDevice::applyBloom() {
     m_impl->record([](Impl& worker) { worker.backend->applyBloom(); });
+    m_impl->hasContent = true;
+    return true;
+}
+bool ThreadedRenderDevice::applyCrtFilter(const CrtFilter& settings) {
+    m_impl->record([settings](Impl& worker) { worker.backend->applyCrtFilter(settings); });
     m_impl->hasContent = true;
     return true;
 }

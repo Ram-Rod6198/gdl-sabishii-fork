@@ -22,10 +22,11 @@ constexpr s32 kLanguageCode = 5;
 constexpr s32 kFirstMechanicCode = 16; ///< the Game page's mechanics, one code each in order
 constexpr s32 kDisplayCode = 13;
 constexpr s32 kRendererCode = 14;
-constexpr s32 kApplyCode = 5;    ///< the Video page's Apply, the first of its actions
-constexpr s32 kDefaultsCode = 6; ///< the Video page's Restore Defaults
-constexpr s32 kSaveCode = 100;   ///< the Video confirmation's Save
-constexpr s32 kRevertCode = 101; ///< the Video confirmation's Revert
+constexpr s32 kCrtFilterCode = 7; ///< the Video page's CRT Filter
+constexpr s32 kApplyCode = 5;     ///< the Video page's Apply, the first of its actions
+constexpr s32 kDefaultsCode = 6;  ///< the Video page's Restore Defaults
+constexpr s32 kSaveCode = 100;    ///< the Video confirmation's Save
+constexpr s32 kRevertCode = 101;  ///< the Video confirmation's Revert
 constexpr s32 kHideCompassCode = 0;
 constexpr s32 kShowCompassCode = 1;
 /** The HUD page's first row, Dark Legacy's look; the looks offered follow it in the order
@@ -193,7 +194,7 @@ bool vulkanOnly(const GameConfig& config, const VideoView& /*view*/) {
     return config.display.renderer != GraphicsApi::OpenGl;
 }
 
-const std::array<VideoRow, 12> kVideoTable{{
+const std::array<VideoRow, 13> kVideoTable{{
     // The renderer is chosen from the title alone, the one drawing a level not being
     // swappable under it; the choice takes effect when the game is next started.
     {.code = kRendererCode,
@@ -379,6 +380,11 @@ const std::array<VideoRow, 12> kVideoTable{{
          },
      .labels = kTextureLabels},
     {.code = 12, .label = "settings.smoothSprites", .toggle = &DisplayConfig::smoothSprites},
+    // Drawn over the whole frame, HUD and menus included, by the Vulkan device alone.
+    {.code = kCrtFilterCode,
+     .label = "settings.crtFilter",
+     .toggle = &DisplayConfig::crtFilter,
+     .enabled = vulkanOnly},
 }};
 constexpr s32 kVideoRows = static_cast<s32>(std::tuple_size_v<decltype(kVideoTable)>);
 
@@ -539,8 +545,13 @@ void SettingsMenu::rebuild(s32 selection) {
         constexpr s32 kLeft = 64;
         constexpr s32 kRight = 448;
         constexpr s32 kColumnGap = 28;
-        constexpr s32 kRowTop = 104; ///< under the title's cell; twelve rows to the actions
-        constexpr s32 kRowStep = 16;
+        constexpr s32 kRowTop = 104;     ///< under the title's cell
+        constexpr s32 kLastRowTop = 286; ///< the lowest a row may start and clear the actions
+        constexpr s32 kWidestRowStep = 16;
+        // Twelve rows stand sixteen apart, as they always have; more close up to stay above
+        // the actions, their lettering made small enough to keep each line clear of the next.
+        constexpr s32 kRowStep =
+            std::min(kWidestRowStep, (kLastRowTop - kRowTop) / (kVideoRows - 1));
         constexpr s32 kActionY = 316;
         constexpr s32 kActionGap = 24;
         if (m_confirmVideo) {
@@ -599,6 +610,11 @@ void SettingsMenu::rebuild(s32 selection) {
             definition.scale =
                 std::min(definition.scale, static_cast<f32>(kRight - kLeft - kActionGap) /
                                                static_cast<f32>(std::max(1, actionWidth)));
+            if (kRowStep < kWidestRowStep) {
+                const s32 fullHeight = std::max(1, m_painter->lineHeight(1.0f));
+                definition.scale = std::min(definition.scale, (static_cast<f32>(kRowStep) - 0.5f) /
+                                                                  static_cast<f32>(fullHeight));
+            }
             definition.valueX = kLeft +
                                 static_cast<s32>(static_cast<f32>(labelWidth) * definition.scale) +
                                 kColumnGap;

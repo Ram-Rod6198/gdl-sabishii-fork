@@ -65,6 +65,7 @@ add_library(engine STATIC
     render/SceneFog.h
     render/ThreadedRenderDevice.h
     render/ThreadedRenderDevice.cpp
+    render/CrtFilter.h
     render/DepthOfField.h
     render/DepthOfField.cpp
     render/AmbientOcclusion.h

@@ -323,6 +323,7 @@
   "settings.depthOfField": "Depth of Field",
   "settings.bloom": "Bloom",
   "settings.ambientOcclusion": "Ambient Occlusion",
+  "settings.crtFilter": "CRT Filter",
   "settings.on": "On",
   "settings.off": "Off",
   "settings.unlimited": "Unlimited",

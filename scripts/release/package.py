@@ -212,7 +212,7 @@ def make_plan(executable: pathlib.Path, assets: Optional[pathlib.Path], data: pa
     shaders = executable.parent / "shaders"
     for shader in ("immediate.vert.spv", "immediate.frag.spv", "postprocess.vert.spv",
                    "depth_of_field.frag.spv", "depth_of_field_ms.frag.spv",
-                   "bloom.frag.spv", "bloom_ms.frag.spv",
+                   "bloom.frag.spv", "bloom_ms.frag.spv", "crt.frag.spv",
                    "ambient_occlusion.frag.spv", "ambient_occlusion_ms.frag.spv",
                    # The OpenGL renderer compiles these at run time.
                    "platform.glsl", "immediate_constants.glsl",

@@ -7,6 +7,7 @@
 #include "engine/core/Types.h"
 #include "engine/math/Math.h"
 #include "engine/render/AmbientOcclusion.h"
+#include "engine/render/CrtFilter.h"
 #include "engine/render/DepthOfField.h"
 #include "engine/render/HeatDistortion.h"
 #include "engine/render/ImmediateBatch.h"
@@ -107,6 +108,11 @@ public:
         bloomDrawOffsets.push_back(draws.size());
         return true;
     }
+    bool applyCrtFilter(const CrtFilter& settings) override {
+        crtDrawOffsets.push_back(draws.size());
+        crtSettings.push_back(settings);
+        return true;
+    }
     void addHeatSource(const HeatSource& source) override { heat.add(source); }
     bool applyAmbientOcclusion(const AmbientOcclusion& settings) override {
         ambientOcclusionDrawOffsets.push_back(draws.size());
@@ -122,6 +128,8 @@ public:
     std::vector<RecordedDraw> draws;
     bool recordDraws = true;
     std::vector<usize> bloomDrawOffsets;
+    std::vector<usize> crtDrawOffsets; ///< how much was drawn before each picture-tube pass
+    std::vector<CrtFilter> crtSettings;
     HeatDistortion heat;
     std::vector<usize> ambientOcclusionDrawOffsets;
     std::vector<AmbientOcclusion> ambientOcclusionSettings;
