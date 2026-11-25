@@ -35,7 +35,9 @@ bool PlayScene::registerNativeDigestResources() {
     };
     const auto stage = std::format("stage/{}", m_world->ref().name);
     usize slot = 0;
-    for (const auto* source : m_world->itemScope().archives()) {
+    // The scope is a value: kept here, since its archives are read for the whole loop.
+    const AssetScope scope = m_world->itemScope();
+    for (const auto* source : scope.archives()) {
         if (!archive(*source, std::format("{}/items/{}", stage, slot++))) {
             return false;
         }
@@ -55,7 +57,8 @@ bool PlayScene::registerNativeDigestResources() {
     }
     for (auto& [name, items] : m_borrowedItems) {
         usize lender = 0;
-        for (const auto* source : items->scope().archives()) {
+        const AssetScope borrowed = items->scope();
+        for (const auto* source : borrowed.archives()) {
             if (!archive(*source, std::format("console/{}/items/{}", name, lender++))) {
                 return false;
             }
