@@ -701,6 +701,7 @@ constexpr std::string_view kDefaultSettingsFile = R"json({
         "turbo": [
           "LeftShift"
         ],
+        "turboAttack": [],
         "up": [
           "Up",
           "W"
@@ -754,6 +755,7 @@ constexpr std::string_view kDefaultSettingsFile = R"json({
         "turbo": [
           "B"
         ],
+        "turboAttack": [],
         "up": [
           "LeftStickUp"
         ],
@@ -962,6 +964,7 @@ constexpr std::string_view kChangedSettingsFile = R"json({
         "turbo": [
           "Tab"
         ],
+        "turboAttack": [],
         "up": [
           "8"
         ],
@@ -1007,6 +1010,7 @@ constexpr std::string_view kChangedSettingsFile = R"json({
           "X"
         ],
         "turbo": [],
+        "turboAttack": [],
         "up": [],
         "usePotion": [
           "Y"
@@ -1214,6 +1218,10 @@ constexpr std::string_view kChangedSettingsFile = R"json({
             "keys": [
               "LeftShift"
             ]
+          },
+          "turboAttack": {
+            "buttons": [],
+            "keys": []
           },
           "up": {
             "buttons": [

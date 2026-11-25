@@ -21,6 +21,7 @@ constexpr std::array kActions{
     ControlAction{"attack", &PlayBindings::attack, &PlayBindings::padAttack},
     ControlAction{"strongAttack", &PlayBindings::strongAttack, &PlayBindings::padStrongAttack},
     ControlAction{"turbo", &PlayBindings::turbo, &PlayBindings::padTurbo},
+    ControlAction{"turboAttack", &PlayBindings::turboAttack, &PlayBindings::padTurboAttack},
     ControlAction{"usePotion", &PlayBindings::usePotion, &PlayBindings::padUsePotion},
     ControlAction{"throwPotion", &PlayBindings::throwPotion, &PlayBindings::padThrowPotion},
     ControlAction{"shieldPotion", &PlayBindings::shieldPotion, &PlayBindings::padShieldPotion},

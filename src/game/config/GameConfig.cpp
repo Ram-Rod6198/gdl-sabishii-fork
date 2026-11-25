@@ -102,6 +102,7 @@ constexpr std::array kPlayRows{
     PlayRow{"strafe", &PlayBindings::strafe, &PlayBindings::padStrafe},
     PlayRow{"strongAttack", &PlayBindings::strongAttack, &PlayBindings::padStrongAttack},
     PlayRow{"turbo", &PlayBindings::turbo, &PlayBindings::padTurbo},
+    PlayRow{"turboAttack", &PlayBindings::turboAttack, &PlayBindings::padTurboAttack},
     PlayRow{"charge", &PlayBindings::charge, &PlayBindings::padCharge},
     PlayRow{"combo", &PlayBindings::combo, &PlayBindings::padCombo},
     PlayRow{"selectorUp", &PlayBindings::selectorUp, &PlayBindings::padSelectorUp},

@@ -1331,12 +1331,13 @@ TEST_CASE("a player's Controls page names each action by its entry in the shippe
     // CONTROLS_DESC, message 180 CONTROLS1, which do_controlsmenu 0x800721C8 draws), each in
     // title case.
     CHECK(actions == std::vector<std::string>{
-                         "Move Up",        "Move Down",     "Move Left",     "Move Right",
-                         "Quick Attack",   "Slow Attack",   "Turbo Defend",  "Magic",
-                         "Throw Potion",   "Potion Shield", "Charge",        "2P Combo",
-                         "Strafe",         "Selector Up",   "Selector Down", "Selector Left",
-                         "Selector Right", "Menu Up",       "Menu Down",     "Menu Left",
-                         "Menu Right",     "Menu Confirm",  "Menu Back",     "Start/Pause Menu"});
+                         "Move Up",         "Move Down",      "Move Left",     "Move Right",
+                         "Quick Attack",    "Slow Attack",    "Turbo Defend",  "Turbo Attack",
+                         "Magic",           "Throw Potion",   "Potion Shield", "Charge",
+                         "2P Combo",        "Strafe",         "Selector Up",   "Selector Down",
+                         "Selector Left",   "Selector Right", "Menu Up",       "Menu Down",
+                         "Menu Left",       "Menu Right",     "Menu Confirm",  "Menu Back",
+                         "Start/Pause Menu"});
 }
 
 TEST_CASE("controls capture waits for release and binds the chosen player's mouse buttons",
@@ -1482,11 +1483,15 @@ TEST_CASE("controller default rows expose stick directions and potion gestures b
     f.right();
     f.right(); // Player 1 skips None.
     REQUIRE(f.menu.menu().definition().items[0].value == "XInput Controller 1");
-    CHECK(f.menu.menu().definition().items[1].value == "Left Stick Up");
+    const auto& rows = f.menu.menu().definition().items;
+    const auto moveUp = std::ranges::find(rows, "Move Up", &MenuItem::text);
+    REQUIRE(moveUp != rows.end());
+    CHECK(moveUp->value == "Left Stick Up");
     // The actions stand in one column after the device: the potion gestures on their rows.
-    CHECK(f.menu.menu().definition().items[9].text == "Throw Potion");
-    CHECK(f.menu.menu().definition().items[9].value == "X (hold)");
-    CHECK(f.menu.menu().definition().items[10].value == "X (double tap)");
+    const auto throwRow = std::ranges::find(rows, "Throw Potion", &MenuItem::text);
+    REQUIRE(throwRow != rows.end());
+    CHECK(throwRow->value == "X (hold)");
+    CHECK(std::next(throwRow)->value == "X (double tap)");
     CHECK(f.settings.writes == 0);
     // An unplugged device cannot remove the last available input route.
     physical.setPad(0, {});
@@ -1620,7 +1625,7 @@ TEST_CASE("a player's potion gestures are a row of their own and are kept with t
     REQUIRE(gestures != items.end());
     CHECK(gestures->text == "Hold / Double Tap");
     CHECK(gestures->value == "Off");
-    const auto throwRow = std::ranges::find(items, 8, &MenuItem::code);
+    const auto throwRow = std::ranges::find(items, 9, &MenuItem::code);
     REQUIRE(throwRow != items.end());
     CHECK(throwRow->value == "Q");
     f.focus(107);

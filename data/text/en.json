@@ -106,6 +106,7 @@
   "controls.attack": "Quick Attack",
   "controls.strongAttack": "Slow Attack",
   "controls.turbo": "Turbo Defend",
+  "controls.turboAttack": "Turbo Attack",
   "controls.charge": "Charge",
   "controls.strafe": "Strafe",
   "controls.selectorUp": "Selector Up",

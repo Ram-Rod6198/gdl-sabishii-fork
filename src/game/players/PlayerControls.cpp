@@ -146,6 +146,9 @@ PlayButtons deviceButtons(const Input& input, const PlayBindings& b, bool keyboa
         out.defendPressed = false;
     }
     out.turboAttackPressed = b.actionChords && out.turbo && out.attackPressed;
+    // The dedicated button is the chord in one press, whether or not chords are on.
+    out.turboAttackPressed = out.turboAttackPressed ||
+                             bound(input, b.turboAttack, b.padTurboAttack, keyboard, pad, true);
     return out;
 }
 

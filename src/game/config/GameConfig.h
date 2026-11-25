@@ -167,6 +167,10 @@ struct PlayBindings {
     std::vector<PadButton> padStrongAttack{PadButton::Y};
     std::vector<Key> turbo{Key::LeftShift}; ///< held with the attack for a turbo attack
     std::vector<PadButton> padTurbo{PadButton::B};
+    /** One press for the turbo attack the meter affords, without the turbo and attack chord.
+     * Bound to nothing unless a player binds it. */
+    std::vector<Key> turboAttack;
+    std::vector<PadButton> padTurboAttack;
     std::vector<Key> charge{Key::F}; ///< the shove that runs the turbo meter down
     std::vector<PadButton> padCharge{PadButton::LeftTrigger};
     /** Held: takes hold of a partner ahead for the two-player combo (the original's

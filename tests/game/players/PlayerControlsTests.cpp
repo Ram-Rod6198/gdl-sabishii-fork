@@ -292,6 +292,62 @@ TEST_CASE("GameCube action chords follow remapped bindings and consume their par
     REQUIRE_FALSE(buttons.throwPotion);
 }
 
+TEST_CASE("a bound turbo attack button asks for the turbo attack on its own press",
+          "[game][players][controls]") {
+    Input input;
+    PadSnapshot pad;
+    pad.connected = true;
+    pad.buttons[static_cast<usize>(PadButton::LeftBumper)] = true;
+    input.setPad(0, pad);
+    input.setKey(Key::T, true);
+
+    // Unbound, as the settings ship it, neither the key nor the button asks for anything.
+    const PlayButtons shipped = readPlayButtons(input, PlayBindings{}, true, 0);
+    CHECK_FALSE(shipped.turboAttackPressed);
+    CHECK_FALSE(shipped.attack);
+    CHECK_FALSE(shipped.turbo);
+
+    PlayBindings b;
+    b.turboAttack = {Key::T};
+    b.padTurboAttack = {PadButton::LeftBumper};
+    // The press alone is the request: no attack, no turbo and no guard go with it.
+    PlayButtons buttons = readPlayButtons(input, b, false, 0);
+    CHECK(buttons.turboAttackPressed);
+    CHECK_FALSE(buttons.attack);
+    CHECK_FALSE(buttons.attackPressed);
+    CHECK_FALSE(buttons.turbo);
+    CHECK_FALSE(buttons.defendPressed);
+    CHECK(readPlayButtons(input, b, true, kNoPad).turboAttackPressed);   // the key by itself
+    CHECK_FALSE(readPlayButtons(input, b, false, 1).turboAttackPressed); // another pad's slot
+
+    // Held on, it asks once.
+    input.beginPoll();
+    input.setPad(0, pad);
+    buttons = readPlayButtons(input, b, true, 0);
+    CHECK_FALSE(buttons.turboAttackPressed);
+
+    // It needs no chords, and the chord still works beside it.
+    input.beginPoll();
+    input.setKey(Key::T, false);
+    pad.buttons[static_cast<usize>(PadButton::LeftBumper)] = false;
+    input.setPad(0, pad);
+    input.beginPoll();
+    pad.buttons[static_cast<usize>(PadButton::LeftBumper)] = true;
+    input.setPad(0, pad);
+    b.actionChords = false;
+    CHECK(readPlayButtons(input, b, false, 0).turboAttackPressed);
+    b.actionChords = true;
+    input.beginPoll();
+    pad.buttons[static_cast<usize>(PadButton::LeftBumper)] = false;
+    pad.buttons[static_cast<usize>(PadButton::B)] = true;
+    input.setPad(0, pad);
+    CHECK_FALSE(readPlayButtons(input, b, false, 0).turboAttackPressed);
+    input.beginPoll();
+    pad.buttons[static_cast<usize>(PadButton::A)] = true;
+    input.setPad(0, pad);
+    CHECK(readPlayButtons(input, b, false, 0).turboAttackPressed);
+}
+
 TEST_CASE("chords cannot combine different pads or a keyboard with a pad",
           "[game][players][controls]") {
     Input input;
