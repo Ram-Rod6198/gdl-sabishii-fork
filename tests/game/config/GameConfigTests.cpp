@@ -103,6 +103,24 @@ TEST_CASE("Escape cannot be rebound from pause to a gameplay or menu action", "[
     CHECK(config.play.attack == std::vector{Key::Space});
 }
 
+TEST_CASE("Auto On No Inventory is off until asked for and needs Auto-Use Item on",
+          "[game][config][combat-settings]") {
+    GameConfig config;
+    CHECK_FALSE(config.combat.autoUseNoInventory);
+    CHECK_FALSE(config.combat.itemsStayOn());
+    REQUIRE(config.loadFile(test::dataDirectory() / "config.json"));
+    CHECK_FALSE(config.combat.autoUseNoInventory);
+    config.mergeJson(R"({"game":{"combat":{"autoUseNoInventory":true}}})");
+    CHECK(config.combat.autoUseNoInventory);
+    CHECK(config.combat.itemsStayOn());
+    GameConfig restored;
+    restored.mergeJson(config.toJson());
+    CHECK(restored.combat.autoUseNoInventory);
+    restored.mergeJson(R"({"game":{"combat":{"autoActivateItems":false}}})");
+    CHECK(restored.combat.autoUseNoInventory);
+    CHECK_FALSE(restored.combat.itemsStayOn()); // with Auto-Use off it does nothing
+}
+
 TEST_CASE("combat is opt-in and movie volume persists independently of other audio",
           "[game][config][combat-settings][movie-volume]") {
     GameConfig config;
@@ -822,6 +840,7 @@ constexpr std::string_view kDefaultSettingsFile = R"json({
       "autoActivateItems": true,
       "autoAim": true,
       "autoMelee": false,
+      "autoUseNoInventory": false,
       "enemyHealthBars": true
     },
     "difficulty": "normal",
@@ -1293,6 +1312,7 @@ constexpr std::string_view kChangedSettingsFile = R"json({
       "autoActivateItems": false,
       "autoAim": false,
       "autoMelee": true,
+      "autoUseNoInventory": false,
       "enemyHealthBars": false
     },
     "difficulty": "bogus",

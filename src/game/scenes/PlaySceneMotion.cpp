@@ -12,6 +12,7 @@
 #include "game/bosses/LegendItems.h"
 #include "game/camera/CameraMovementLimit.h"
 #include "game/combat/HurtKind.h"
+#include "game/config/GameConfig.h"
 #include "game/hud/HelpMessages.h"
 #include "game/level/ImportedLevel.h"
 #include "game/level/LevelFixtures.h"
@@ -42,8 +43,10 @@ public:
     void stepSelector(usize i, const SelectorInput& input, s32 elapsed) override {
         const auto audioScope = m_scene.m_audio.soundScope(
             {32, 0, 1, static_cast<u8>(m_scene.m_players[i].actor.player())}, 1);
+        const GameConfig* config = m_scene.m_services->config;
         m_scene.m_hud.stepSelector(m_scene.m_players[i].actor, input, elapsed, m_scene.m_audio,
-                                   m_scene.m_world->ref().isSecret());
+                                   m_scene.m_world->ref().isSecret(),
+                                   config != nullptr && config->combat.itemsStayOn());
     }
     void advanceTurbo(usize i, s32 elapsed, f32 duration) override {
         const auto audioScope = m_scene.m_audio.soundScope(

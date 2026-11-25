@@ -95,6 +95,12 @@ struct CombatConfig {
     bool autoMelee = false; ///< unpressed close attacks while moving; manual attacks are unchanged
     bool enemyHealthBars = true;   ///< floating meters on golems, gargoyles and generals
     bool autoActivateItems = true; ///< newly collected powerups start enabled
+    /** Auto-Use Item's stricter form, the PlayStation 2's "Auto On No Inventory": with
+     * Auto-Use on, a powerup also starts enabled when it is bought, a Turbo is never kept
+     * back for later, and the selector takes nothing off again. */
+    bool autoUseNoInventory = false;
+    /** Whether items are used as they come and stay on: both switches together. */
+    bool itemsStayOn() const { return autoActivateItems && autoUseNoInventory; }
     /** Release-time targeting of shots and the familiar's spit, and the standing attack's
      * turn toward the target: the original's per-pad Auto Aim control option. */
     bool autoAim = true;

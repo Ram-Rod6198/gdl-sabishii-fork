@@ -621,8 +621,10 @@ TEST_CASE("Combat auto melee changes are shared persisted and reversible from ev
         CHECK(f.menu.menu().definition().title == "Combat");
         CHECK(f.menu.menu().definition().items[0].text == "Auto Melee");
         CHECK(f.menu.menu().definition().items[2].text == "Auto-Use Item");
-        CHECK(f.menu.menu().definition().items[3].text == "Auto Aim");
-        CHECK(f.menu.menu().definition().items[3].value == "On");
+        CHECK(f.menu.menu().definition().items[3].text == "Auto On No Inventory");
+        CHECK(f.menu.menu().definition().items[3].value == "Off");
+        CHECK(f.menu.menu().definition().items[4].text == "Auto Aim");
+        CHECK(f.menu.menu().definition().items[4].value == "On");
         CHECK(f.menu.menu().definition().items[0].value == "Off");
         f.settings.fail = true;
         f.right();
@@ -657,7 +659,13 @@ TEST_CASE("Combat auto melee changes are shared persisted and reversible from ev
         CHECK(f.config.combat.enemyHealthBars);
         f.choose(3);
         CHECK_FALSE(f.config.combat.autoAim);
-        CHECK(f.menu.menu().definition().items[3].value == "Off");
+        CHECK(f.menu.menu().definition().items[4].value == "Off");
+        CHECK_FALSE(f.config.combat.autoUseNoInventory);
+        f.choose(4);
+        CHECK(f.config.combat.autoUseNoInventory);
+        CHECK(f.menu.menu().definition().items[3].value == "On");
+        f.choose(4);
+        CHECK_FALSE(f.config.combat.autoUseNoInventory);
         f.choose(3);
         CHECK(f.config.combat.autoAim);
         f.back();

@@ -118,6 +118,7 @@ TEST_CASE("native setup freezes agreed gameplay but preserves local output prefe
     second.combat.autoAim = false;
     second.game.mechanics["local"] = true;
     second.game.autoSave = true;
+    second.combat.autoUseNoInventory = true;
     second.controls[0].device = "local-device";
     second.save.directory = "private-save-directory";
     second.play.magicHoldSeconds = 0.5f;
@@ -135,6 +136,9 @@ TEST_CASE("native setup freezes agreed gameplay but preserves local output prefe
     CHECK_FALSE(a->config().combat.autoActivateItems);
     CHECK(a->config().game.expandedShop);
     CHECK(a->config().combat.autoAim == contract().autoAim);
+    // Auto On No Inventory is no room rule: online, purchases and the selector are the original's.
+    CHECK_FALSE(a->config().combat.autoUseNoInventory);
+    CHECK_FALSE(b->config().combat.autoUseNoInventory);
     // The room's rules switch the mechanics, not either machine: one kept to a machine is off.
     for (const auto* setup : {a.get(), b.get()}) {
         CHECK_FALSE(MechanicCatalog::enabled(setup->config().game, "rage"));

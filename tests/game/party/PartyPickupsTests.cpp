@@ -493,10 +493,16 @@ TEST_CASE("world pickups honor auto use and remain available in the selector",
                                     .openMessage = {},
                                     .challengeCoin = {}};
     services.autoActivateItems = activate;
+    // Auto On No Inventory uses a Turbo even on a full meter, where Auto-Use alone keeps it.
+    const bool staysOn = GENERATE(false, true);
+    services.itemsStayOn = staysOn;
     std::array<PlayerRuntime, 1> players;
     const Vec3 spot{10.7f, 10.2f, -60.5f};
     players[0].actor.spawn(3, {}, nullptr, spot, 0);
     const bool turbo = GENERATE(false, true);
+    if (turbo && staysOn) {
+        players[0].turbo.add(TurboMeter::kFull);
+    }
     const auto& records = world.layout().itemInfos();
     const auto found = std::ranges::find_if(records, [](const auto& record) {
         return record.type == 1 && record.subtype == static_cast<s32>(ItemKind::WeaponPowerup);

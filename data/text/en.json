@@ -66,6 +66,7 @@
   "settings.autoMelee": "Auto Melee",
   "settings.enemyHealthBars": "Enemy Healthbars",
   "settings.autoActivateItems": "Auto-Use Item",
+  "settings.autoUseNoInventory": "Auto On No Inventory",
   "settings.autoAim": "Auto Aim",
   "settings.mono": "Mono",
   "settings.stereo": "Stereo",

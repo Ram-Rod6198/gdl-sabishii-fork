@@ -14,9 +14,11 @@
 #include "engine/io/File.h"
 
 #include "TestSupport.h"
+#include "game/characters/Inventory.h"
 #include "game/characters/LevelResults.h"
 #include "game/characters/Progression.h"
 #include "game/characters/Vitality.h"
+#include "game/combat/PowerupFlags.h"
 #include "game/shop/ShopPurchase.h"
 #include "game/shop/ShopSession.h"
 
@@ -269,6 +271,37 @@ TEST_CASE("shop stat increases persist and stop at the stat cap", "[shop]") {
         save.progress().speedAdd = 999;
     REQUIRE(buyShopItem(save, stats, item(type), 1) == ShopResult::Full);
     REQUIRE(sellShopItem(save, item(type)) == ShopResult::NotOwned);
+}
+TEST_CASE("under Auto On No Inventory a shop powerup starts active, but for Turbo and Mikey",
+          "[shop]") {
+    for (s32 type = 1; type <= 40; ++type) {
+        if (type == 1 || type == 3 || type == 17 || (type >= 5 && type <= 8)) {
+            continue;
+        }
+        CAPTURE(type);
+        auto save = shopper();
+        const ClassStats stats;
+        REQUIRE(buyShopItem(save, stats, item(type), 1, true) == ShopResult::Bought);
+        REQUIRE(save.progress().inventory.powerupCount() == 1);
+        const PowerupSlot& slot = save.progress().inventory.powerups[0];
+        const bool manual = slot.kind == powerup::kSpecial &&
+                            (slot.flags == powerup::kMikey || (slot.flags & powerup::kTurbo) != 0);
+        CHECK(slot.on == !manual);
+        // One carried and taken off is put back on with the next bought.
+        save.progress().inventory.powerups[0].on = false;
+        save.gold = 5000;
+        if (buyShopItem(save, stats, item(type), 1, true) == ShopResult::Bought) {
+            REQUIRE(save.progress().inventory.powerupCount() == 1);
+            CHECK(save.progress().inventory.powerups[0].on == !manual);
+        }
+    }
+    // Keys and potions are bought as ever.
+    auto save = shopper();
+    const ClassStats stats;
+    REQUIRE(buyShopItem(save, stats, item(1), 1, true) == ShopResult::Bought);
+    CHECK(save.progress().inventory.keys == 1);
+    REQUIRE(buyShopItem(save, stats, item(3, 250), 2, true) == ShopResult::Bought);
+    CHECK(save.progress().inventory.nextPotion() == 2);
 }
 TEST_CASE("every shop powerup type starts inactive and can be sold", "[shop]") {
     for (s32 type = 1; type <= 40; ++type) {

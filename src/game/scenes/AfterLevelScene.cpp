@@ -93,6 +93,8 @@ bool AfterLevelScene::open(RenderDevice& device, const GameServices& services,
         if (visit == ShopVisit::Level && levelName == "H4") {
             visit = ShopVisit::Completion;
         }
+        m_session.setActivatePurchases(services.config != nullptr &&
+                                       services.config->combat.itemsStayOn());
         m_session.start(party, results, maxima, classes, std::move(catalog), visit);
         // Decode the complete screen before exposing a transaction to the player.
         for (const auto& item : m_session.catalog().items()) {

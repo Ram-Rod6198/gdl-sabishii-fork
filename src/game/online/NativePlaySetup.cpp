@@ -92,6 +92,8 @@ std::unique_ptr<NativePlaySetup> NativePlaySetup::create(const GameConfig& local
     applyRoomRules(contract.mechanics, room.mechanics, result->m_config.game);
     result->m_config.combat.autoMelee = contract.autoMelee;
     result->m_config.combat.autoActivateItems = contract.autoActivateItems;
+    // No room rule carries it, and it changes what every peer simulates: online, off.
+    result->m_config.combat.autoUseNoInventory = false;
     result->m_config.game.expandedShop = contract.expandedShop;
     result->m_config.combat.autoAim = contract.autoAim;
     result->m_options = options;

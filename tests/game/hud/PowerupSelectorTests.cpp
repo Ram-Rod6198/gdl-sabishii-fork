@@ -171,6 +171,48 @@ TEST_CASE("the selector opens on a carried powerup, goes round them, and switche
     REQUIRE(selector.selection() == 1); // it remembers where it was
 }
 
+TEST_CASE("under Auto On No Inventory the selector puts a powerup on but never takes one off",
+          "[game][screens][selector]") {
+    Inventory inventory;
+    PowerupSelector selector;
+    inventory.powerups[1] = PowerupSlot{30.0f, 9, 0.0f, 0x4, false};
+    inventory.powerups[4] = PowerupSlot{30.0f, 5, 0.0f, 0x80000, true};
+    REQUIRE(selector.step(SelectorInput{.up = true}, inventory, 2, false, true) ==
+            SelectorCue::Opened);
+    while (!selector.showing()) {
+        selector.step(SelectorInput{}, inventory, 2, false, true);
+    }
+    REQUIRE(selector.selection() == 4);
+    // What is on stays on, without a sound.
+    CHECK(selector.step(SelectorInput{.up = true}, inventory, 2, false, true) == SelectorCue::None);
+    CHECK(inventory.powerups[4].on);
+    // It still goes round them, and puts on one carried off from before the setting.
+    REQUIRE(selector.step(SelectorInput{.left = true}, inventory, 2, false, true) ==
+            SelectorCue::Moved);
+    REQUIRE(selector.selection() == 1);
+    CHECK(selector.step(SelectorInput{.up = true}, inventory, 2, false, true) ==
+          SelectorCue::Switched);
+    CHECK(inventory.powerups[1].on);
+    CHECK(selector.step(SelectorInput{.up = true}, inventory, 2, false, true) == SelectorCue::None);
+    CHECK(inventory.powerups[1].on);
+    // A challenge still refuses what it does not allow.
+    inventory.powerups[1] = PowerupSlot{30.0f, powerup::kSpecial, 0.0f, powerup::kStopTime, false};
+    CHECK(selector.step(SelectorInput{.up = true}, inventory, 2, true, true) == SelectorCue::None);
+    CHECK_FALSE(inventory.powerups[1].on);
+    // Down closes it as ever.
+    CHECK(selector.step(SelectorInput{.down = true}, inventory, 2, false, true) ==
+          SelectorCue::Closed);
+    // Without the setting the same press takes it off.
+    PowerupSelector plain;
+    plain.step(SelectorInput{.up = true}, inventory, 2);
+    while (!plain.showing()) {
+        plain.step(SelectorInput{}, inventory, 2);
+    }
+    REQUIRE(plain.selection() == 4);
+    CHECK(plain.step(SelectorInput{.up = true}, inventory, 2) == SelectorCue::Switched);
+    CHECK_FALSE(inventory.powerups[4].on);
+}
+
 TEST_CASE("pickup focus selects new renewed and replaced slots without opening the selector",
           "[game][screens][selector]") {
     Inventory inventory;

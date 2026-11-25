@@ -392,6 +392,7 @@ template <class Io, class Config> void visitSettings(Io& io, Config& config) {
             combat.value("autoMelee", config.combat.autoMelee);
             combat.value("enemyHealthBars", config.combat.enemyHealthBars);
             combat.value("autoActivateItems", config.combat.autoActivateItems);
+            combat.value("autoUseNoInventory", config.combat.autoUseNoInventory);
             combat.value("autoAim", config.combat.autoAim);
         });
         game.named("multiplayer", config.multiplayer.mode, MultiplayerConfig::kNames,

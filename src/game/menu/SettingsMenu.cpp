@@ -132,10 +132,11 @@ template <class Config> struct Switch {
 constexpr std::array<Switch<GameOptionsConfig>, 2> kGameSwitches{
     {{3, "settings.expandedShop", &GameOptionsConfig::expandedShop},
      {4, "settings.autoSave", &GameOptionsConfig::autoSave}}};
-constexpr std::array<Switch<CombatConfig>, 4> kCombatSwitches{
+constexpr std::array<Switch<CombatConfig>, 5> kCombatSwitches{
     {{0, "settings.autoMelee", &CombatConfig::autoMelee},
      {1, "settings.enemyHealthBars", &CombatConfig::enemyHealthBars},
      {2, "settings.autoActivateItems", &CombatConfig::autoActivateItems},
+     {4, "settings.autoUseNoInventory", &CombatConfig::autoUseNoInventory},
      {3, "settings.autoAim", &CombatConfig::autoAim}}};
 
 /** Flips the switch with `code`; false when there is none. */

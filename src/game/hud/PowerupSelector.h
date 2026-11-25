@@ -37,8 +37,9 @@ public:
     static f32 labelScale(const TextPainter& text, std::string_view label, f32 size = kLabelScale,
                           s32 budget = kLabelBudget);
 
+    /** `staysOn` is Auto On No Inventory: up puts the named one on but never takes it off. */
     SelectorCue step(const SelectorInput& input, Inventory& inventory, s32 ticks,
-                     bool challenge = false);
+                     bool challenge = false, bool staysOn = false);
     /** Remember the acquired slot without opening or restarting the selector. */
     void focus(const Inventory& inventory, s32 kind, u32 flags);
     /** Active finite usage: selection first, then acquisitions newest first. */

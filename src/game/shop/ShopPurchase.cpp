@@ -110,7 +110,7 @@ ShopResult shopEligibility(const CharacterSave& save, const ClassStats& stats,
     return ShopResult::Bought;
 }
 ShopResult buyShopItem(CharacterSave& save, const ClassStats& stats, const ShopItem& item,
-                       s32 potionKind) {
+                       s32 potionKind, bool activate) {
     const auto result = shopEligibility(save, stats, item);
     if (result != ShopResult::Bought) {
         return result;
@@ -130,7 +130,20 @@ ShopResult buyShopItem(CharacterSave& save, const ClassStats& stats, const ShopI
     default: {
         const auto& effect = kPowerups[static_cast<usize>(item.type)];
         progress.inventory.addPowerup(effect.kind, effect.flags, effect.charge,
-                                      effect.strength * stats.powerupTime, false);
+                                      effect.strength * stats.powerupTime, activate);
+        if (activate) {
+            // One already carried and taken off is put on with what was bought; Turbo and
+            // Mikey keep the selector's own activation, as they do when picked up in the shop.
+            const bool manual =
+                effect.kind == powerup::kSpecial &&
+                (effect.flags == powerup::kMikey || (effect.flags & powerup::kTurbo) != 0);
+            for (PowerupSlot& slot : progress.inventory.powerups) {
+                if (!manual && slot.held() && slot.kind == effect.kind &&
+                    slot.flags == effect.flags) {
+                    slot.on = true;
+                }
+            }
+        }
         break;
     }
     }

@@ -64,14 +64,16 @@ bool turboPickup(const Pickup& pickup) {
 }
 
 ItemTaking judgePickup(CharacterSave& save, const Pickup& pickup, const LevelWorld& world,
-                       const ClassDataSet& classes, bool autoActivateItems, f32 turboHeld) {
+                       const ClassDataSet& classes, bool autoActivateItems, bool itemsStayOn,
+                       f32 turboHeld) {
     const ClassStats* stats = classes.stats(save.character);
     // A Turbo taken onto a meter all but full would be spent for nothing: it waits in the
-    // inventory for the selector instead, as it does with Auto-Use off.
+    // inventory for the selector instead, as it does with Auto-Use off. Auto On No Inventory
+    // keeps nothing back: the Turbo is used all the same.
     const bool activate =
         autoActivateItems &&
         (!world.ref().isSecret() || powerupAllowedInChallenge(pickup.subtype, pickup.flags)) &&
-        !(turboPickup(pickup) && PartyPickups::storesTurbo(turboHeld));
+        (itemsStayOn || !(turboPickup(pickup) && PartyPickups::storesTurbo(turboHeld)));
     auto taking =
         takeItem(save, ItemOffer{pickup.subtype, pickup.amount, pickup.flags, pickup.strength},
                  stats != nullptr ? stats->powerupTime : 1.0f, activate);
@@ -172,7 +174,7 @@ PickupDecision PartyPickups::takeCurrency(const Pickup& pickup, std::span<Player
     auto& runtime = players[pickup.collector];
     auto& actor = runtime.actor;
     // Gold and keys do not use the selector activation policy.
-    const auto taking = judgePickup(actor.save(), pickup, world, classes, false, 0.0f);
+    const auto taking = judgePickup(actor.save(), pickup, world, classes, false, false, 0.0f);
     if (!taking.took()) {
         if (const auto lesson = refusalHelp(taking.outcome); lesson && !help(*lesson)) {
             return kRefused;
@@ -404,8 +406,9 @@ std::optional<s32> PartyPickups::take(const Pickup& pickup, std::span<PlayerRunt
     PlayerRuntime& runtime = players[pickup.collector];
     PlayerActor& actor = runtime.actor;
     const auto help = [&](s32 id) { return services.help && services.help(id, pickup.collector); };
-    const auto taking = judgePickup(actor.save(), pickup, world, services.classes,
-                                    services.autoActivateItems, runtime.turbo.held());
+    const auto taking =
+        judgePickup(actor.save(), pickup, world, services.classes, services.autoActivateItems,
+                    services.itemsStayOn, runtime.turbo.held());
     if (!taking.took()) {
         if (const auto id = refusalHelp(taking.outcome)) {
             help(*id);

@@ -58,6 +58,8 @@ public:
         std::function<bool(std::string_view, usize)> openMessage; ///< a scroll page
         std::function<void(usize)> challengeCoin;                 ///< a coin of the challenge
         bool autoActivateItems = true;
+        /** Auto On No Inventory: with Auto-Use, a Turbo is used even on a full meter. */
+        bool itemsStayOn = false;
     };
 
     /** The share of a full turbo meter from which a Turbo pickup is stored rather than

@@ -67,8 +67,9 @@ public:
     std::optional<ChallengeHud::Look> hourglassLook(std::span<const PlayerRuntime> players) const;
     /** Stop Time's hourglass, as bound and stepped, which draws hourglassLook()'s look. */
     const ChallengeHud& hourglass() const { return m_hourglass; }
+    /** `staysOn`: Auto On No Inventory, under which the selector takes nothing off. */
     void stepSelector(PlayerActor& actor, const SelectorInput& input, s32 ticks,
-                      LevelSoundscape& audio, bool challenge = false);
+                      LevelSoundscape& audio, bool challenge = false, bool staysOn = false);
     void focusPickup(const PlayerActor& actor, s32 kind, u32 flags);
     bool postHelp(s32 id, usize index, std::span<PlayerRuntime> players, LevelSoundscape& audio,
                   s32 number = -1, std::optional<Vec3> position = std::nullopt);

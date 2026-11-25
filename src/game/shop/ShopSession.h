@@ -82,6 +82,9 @@ public:
     void start(std::span<const PartyMember> party, std::span<const LevelResults> results,
                const std::array<s32, 3>& maxima, const ClassDataSet& classes, ShopCatalog catalog,
                ShopVisit visit = ShopVisit::Level, std::optional<u32> potionSeed = std::nullopt);
+    /** Whether a powerup bought is switched on at once (Auto On No Inventory); off, as the
+     * original's, until set. Kept across start(). */
+    void setActivatePurchases(bool activate) { m_activatePurchases = activate; }
     void update(f64 seconds, const Inputs& inputs, const std::array<s32, 4>* potions = nullptr);
     /** Focus a visible mouse-picked row; transactions still use update's ordinary rules. */
     bool focus(s32 player, usize row);
@@ -106,6 +109,7 @@ private:
     std::vector<ShopLane> m_lanes;
     std::vector<ShopEvent> m_events;
     ShopVisit m_visit = ShopVisit::Level;
+    bool m_activatePurchases = false;
     std::optional<std::mt19937> m_potionRandom;
 };
 } // namespace gdl::game

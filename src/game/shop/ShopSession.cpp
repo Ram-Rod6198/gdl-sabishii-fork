@@ -271,7 +271,8 @@ void ShopSession::update(f64 seconds, const Inputs& inputs, const std::array<s32
                     potion = 1 + static_cast<s32>(
                                      random_distribution::boundedIndex(*m_potionRandom, 4).value());
                 }
-                lane.feedback = buyShopItem(lane.member.save, lane.stats, item, potion);
+                lane.feedback =
+                    buyShopItem(lane.member.save, lane.stats, item, potion, m_activatePurchases);
                 lane.transacted = true;
                 if (lane.feedback == ShopResult::Exit) {
                     lane.phase = ShopPhase::AfterStats;

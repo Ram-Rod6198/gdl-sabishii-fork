@@ -574,7 +574,9 @@ PartyPickups::Services PlayScene::pickupServices() {
                                   usize page) { return openMessage(name, page); },
             .challengeCoin = [this](usize item) { collectChallengeCoin(item); },
             .autoActivateItems =
-                m_services->config == nullptr || m_services->config->combat.autoActivateItems};
+                m_services->config == nullptr || m_services->config->combat.autoActivateItems,
+            .itemsStayOn =
+                m_services->config != nullptr && m_services->config->combat.itemsStayOn()};
 }
 
 bool PlayScene::fallen(s32 player) const {

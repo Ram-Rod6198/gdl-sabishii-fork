@@ -144,10 +144,10 @@ bool PartyHud::postHelp(s32 id, usize index, std::span<PlayerRuntime> players,
 }
 
 void PartyHud::stepSelector(PlayerActor& actor, const SelectorInput& input, s32 ticks,
-                            LevelSoundscape& audio, bool challenge) {
+                            LevelSoundscape& audio, bool challenge, bool staysOn) {
     const auto slot = static_cast<usize>(std::clamp(actor.player(), 0, kPlayerCount - 1));
-    switch (
-        m_sim.selectors[slot].step(input, actor.save().progress().inventory, ticks, challenge)) {
+    switch (m_sim.selectors[slot].step(input, actor.save().progress().inventory, ticks, challenge,
+                                       staysOn)) {
     case SelectorCue::Opened:
     case SelectorCue::Closed: audio.playNamed(kMenuMoveSound); break;
     case SelectorCue::Moved: audio.playNamed(kSelectorMoveSound); break;
